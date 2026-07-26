@@ -228,7 +228,7 @@ class HttpClient:
         # here: retry timing must not correlate across probes, or a provider
         # could use the pattern to recognise the verifier.
         delay = min(2.0 * (2**attempt), 20.0)
-        await asyncio.sleep(random.uniform(0.0, delay))  # noqa: S311
+        await asyncio.sleep(random.uniform(0.0, delay))
 
 
 def _safe_json(resp: httpx.Response) -> Any:
@@ -249,9 +249,7 @@ def _event_has_content(event: dict[str, Any]) -> bool:
         delta = choice.get("delta") or {}
         if delta.get("content") or delta.get("tool_calls") or delta.get("reasoning_content"):
             return True
-    if event.get("candidates"):
-        return True
-    return False
+    return bool(event.get("candidates"))
 
 
 def raise_for_status(result: HttpResult, *, context: str) -> None:

@@ -299,8 +299,11 @@ def _load_entry_points() -> None:
 
 def available_adapters() -> dict[str, type[Adapter]]:
     """All registered adapters, including plugins."""
-    from . import openai_compat  # noqa: F401  ensure built-ins are imported
-    from . import anthropic, gemini  # noqa: F401
+    from . import (  # noqa: F401
+        anthropic,
+        gemini,
+        openai_compat,
+    )
 
     _load_entry_points()
     return dict(_REGISTRY)

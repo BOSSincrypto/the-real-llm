@@ -128,7 +128,9 @@ class Evidence:
         return self.llr < 0
 
 
-def llr_from_probability(p_if_genuine: float, p_if_substituted: float, *, floor: float = 1e-6) -> float:
+def llr_from_probability(
+    p_if_genuine: float, p_if_substituted: float, *, floor: float = 1e-6
+) -> float:
     """LLR from two explicitly modelled likelihoods.
 
     Both are clamped away from zero so that a single confidently-wrong model
