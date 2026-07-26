@@ -224,18 +224,28 @@ class DatasetLoader:
         truncated: list[int] = []
         total: int | None = None
         cursor = offset
+        # Once a single-row page has come back truncated, this split simply has
+        # oversized rows and shrinking every later page only multiplies requests.
+        shrink = True
 
         while limit is None or len(collected) < limit:
             want = MAX_PAGE if limit is None else min(MAX_PAGE, limit - len(collected))
-            entries, total, page_truncated = await self._fetch_page(spec, config, cursor, want)
+            entries, total, page_truncated, asked = await self._fetch_page(
+                spec, config, cursor, want, shrink=shrink
+            )
             if not entries:
                 break
+            if page_truncated and asked <= 1:
+                shrink = False
             collected.extend(e.get("row") or {} for e in entries)
             truncated.extend(page_truncated)
             cursor += len(entries)
             if total is not None and cursor >= total:
                 break
-            if len(entries) < want:
+            # A short page means the split ran out -- but only when it is short
+            # against the size actually requested, which truncation handling may
+            # have reduced below ``want``.
+            if len(entries) < asked:
                 break
 
         if truncated:
@@ -280,9 +290,13 @@ class DatasetLoader:
         )
 
     async def _fetch_page(
-        self, spec: DatasetSpec, config: str, offset: int, length: int
-    ) -> tuple[list[dict[str, Any]], int | None, list[int]]:
+        self, spec: DatasetSpec, config: str, offset: int, length: int, *, shrink: bool = True
+    ) -> tuple[list[dict[str, Any]], int | None, list[int], int]:
         """Fetch one page, shrinking it until the server stops truncating cells.
+
+        Returns the row envelopes, the split's total row count, the indices of
+        rows that stayed truncated, and the page size finally used -- the caller
+        needs that last value to tell a shrunk page from the end of the split.
 
         The server truncates on total response size, so halving the page size
         is what actually recovers the full cell content. A row that is still
@@ -306,11 +320,11 @@ class DatasetLoader:
             entries = list(payload.get("rows") or []) if isinstance(payload, dict) else []
             total = payload.get("num_rows_total") if isinstance(payload, dict) else None
             damaged = [e for e in entries if e.get("truncated_cells")]
-            if damaged and length > 1:
+            if damaged and shrink and length > 1:
                 length = max(1, length // 2)
                 continue
             idx = [int(e.get("row_idx", -1)) for e in damaged]
-            return entries, (int(total) if isinstance(total, int) else None), idx
+            return entries, (int(total) if isinstance(total, int) else None), idx, length
 
     # ------------------------------------------------------------------- http
 
