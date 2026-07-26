@@ -568,9 +568,9 @@ class TokenizerProbe(Probe):
                 **charged,
             )
 
-        generation = self._generation_mismatch(ctx, measured, expected, ratio, data)
+        generation = self._generation_mismatch(ctx, measured, expected, ratio, data, charged)
         if generation is not None:
-            return self._ev("canonical_text_tokens", **generation, **charged)
+            return generation
 
         # Everything else: a real disagreement that names no known alternative.
         relative = abs(ratio - 1.0)
@@ -587,6 +587,7 @@ class TokenizerProbe(Probe):
                 "this is larger than that."
             ),
             data=data,
+            **charged,
         )
 
     def _generation_mismatch(
@@ -596,7 +597,8 @@ class TokenizerProbe(Probe):
         expected: int,
         ratio: float,
         data: dict[str, Any],
-    ) -> dict[str, Any] | None:
+        charged: dict[str, Any],
+    ) -> Evidence | None:
         """The Claude 4.7 tokenizer-generation check, or ``None`` when it cannot fire.
 
         It fires only inside the Anthropic family, and only when the claimed
@@ -615,35 +617,38 @@ class TokenizerProbe(Probe):
         data["claimed_claude_version"] = f"{claimed_version[0]}.{claimed_version[1]}"
         data["claimed_tokenizer_generation"] = "post_4_7" if post_boundary else "pre_4_7"
 
+        preamble = (
+            f"the canonical probe string measured {measured} tokens where "
+            f"{ctx.provider.target_model!r} should produce {expected} -- a ratio of "
+            f"{ratio:.2f}, which is the "
+        )
         low = 1.0 / GENERATION_RATIO
         if post_boundary and abs(ratio - low) <= _RATIO_BAND * low:
-            return {
-                "label": "canonical_text_tokens",
-                "llr": -STRONG,
-                "cap": STRONG,
-                "detail": (
-                    f"the canonical probe string measured {measured} tokens where "
-                    f"{ctx.provider.target_model!r} should produce {expected} -- a ratio of "
-                    f"{ratio:.2f}, which is the pre-4.7 Claude tokenizer profile. Claude 4.7 "
-                    "and later produce roughly 30% more tokens for identical text than 4.6 "
-                    "and earlier, so this endpoint is running an older Claude generation "
-                    "than the one it claims."
+            return self._ev(
+                "canonical_text_tokens",
+                -STRONG,
+                cap=STRONG,
+                detail=(
+                    preamble + "pre-4.7 Claude tokenizer profile. Claude 4.7 and later "
+                    "produce roughly 30% more tokens for identical text than 4.6 and "
+                    "earlier, so this endpoint is running an older Claude generation than "
+                    "the one it claims."
                 ),
-                "data": data,
-            }
+                data=data,
+                **charged,
+            )
         if not post_boundary and abs(ratio - GENERATION_RATIO) <= _RATIO_BAND * GENERATION_RATIO:
-            return {
-                "label": "canonical_text_tokens",
-                "llr": -STRONG,
-                "cap": STRONG,
-                "detail": (
-                    f"the canonical probe string measured {measured} tokens where "
-                    f"{ctx.provider.target_model!r} should produce {expected} -- a ratio of "
-                    f"{ratio:.2f}, which is the post-4.7 Claude tokenizer profile. The "
-                    "endpoint is running a newer Claude generation than the one it claims."
+            return self._ev(
+                "canonical_text_tokens",
+                -STRONG,
+                cap=STRONG,
+                detail=(
+                    preamble + "post-4.7 Claude tokenizer profile. The endpoint is running "
+                    "a newer Claude generation than the one it claims."
                 ),
-                "data": data,
-            }
+                data=data,
+                **charged,
+            )
         return None
 
     def _script_profile(
