@@ -33,12 +33,17 @@
 #     and has 198 items; separating two frontier models on it alone would need
 #     tens of thousands of items. Never use it by itself.
 #
+#   * aa_intelligence_index, aa_coding_index and aa_agentic_index are Artificial
+#     Analysis composites rather than single benchmarks. They are comparable
+#     across models because Artificial Analysis fixes the conditions, but those
+#     conditions are not published per model, so treat them as weak evidence.
+#
 # Attribution
 #   Epoch AI's Capabilities Index data is CC-BY and must be credited; see NOTICE.
 #   Artificial Analysis index values reach this file through OpenRouter's public
 #   API and carry Artificial Analysis's own terms.
 #
-# Regenerate the machine-readable parts with `llmverify reference refresh`, which
+# Regenerate the machine-readable parts with llmverify.reference.refresh, which
 # diffs against this file rather than overwriting it. Rewriting the file drops
 # these comments, so keep provenance prose in `notes` fields, which survive.
 schema_version: 1
@@ -174,8 +179,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 78.0
     unit: score
@@ -183,8 +187,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 60.7
     unit: score
@@ -192,8 +195,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 97.5
     effort: high
@@ -201,8 +203,8 @@ models:
     source: Anthropic, Claude Opus 5 announcement
     source_url: https://www.anthropic.com/news/claude-opus-5
     as_of: '2026-07-24'
-    notes: Public eval set; Anthropic reports the same 97.5 at max and at high effort.
     confidence: primary
+    notes: Public eval set; Anthropic reports the same 97.5 at max and at high effort.
   - benchmark: arc_agi_1
     score: 97.5
     effort: max
@@ -219,7 +221,7 @@ models:
     source: ARC Prize, via Anthropic's Claude Opus 5 announcement
     source_url: https://arcprize.org/leaderboard
     as_of: '2026-07-24'
-    confidence: primary
+    confidence: independent
   - benchmark: arc_agi_2
     score: 90.4
     effort: max
@@ -227,8 +229,8 @@ models:
     source: ARC Prize, via Anthropic's Claude Opus 5 announcement
     source_url: https://arcprize.org/leaderboard
     as_of: '2026-07-24'
+    confidence: independent
     notes: ARC Prize runs this evaluation itself rather than accepting a lab number.
-    confidence: primary
   - benchmark: arc_agi_2
     score: 88.33
     effort: max
@@ -245,8 +247,8 @@ models:
     source: Anthropic, Claude Opus 5 announcement
     source_url: https://www.anthropic.com/news/claude-opus-5
     as_of: '2026-07-24'
-    notes: 25 environments.
     confidence: primary
+    notes: 25 environments.
   - benchmark: critpt
     score: 29.14
     effort: max
@@ -262,8 +264,8 @@ models:
     source: Anthropic, Claude Opus 5 announcement (Frontier-Bench v0.1)
     source_url: https://www.anthropic.com/news/claude-opus-5
     as_of: '2026-07-24'
-    notes: Mean reward over 5 attempts, not an accuracy.
     confidence: primary
+    notes: Mean reward over 5 attempts, not an accuracy.
   - benchmark: frontiermath_t123
     score: 85.61
     effort: max
@@ -303,15 +305,15 @@ models:
     score: 56.3
     tools: false
     source: Press coverage of the Claude Opus 5 launch
-    confidence: secondary
     as_of: '2026-07-24'
+    confidence: secondary
     notes: Not located on an Anthropic page; conditions unstated.
   - benchmark: hle
     score: 64.7
     tools: true
     source: Press coverage of the Claude Opus 5 launch
-    confidence: secondary
     as_of: '2026-07-24'
+    confidence: secondary
     notes: Not located on an Anthropic page; conditions unstated.
   - benchmark: otis_mock_aime
     score: 98.89
@@ -376,8 +378,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 76.5
     unit: score
@@ -385,8 +386,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 59.9
     unit: score
@@ -394,8 +394,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: critpt
     score: 28.57
     effort: max
@@ -541,8 +540,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 71.5
     unit: score
@@ -550,8 +548,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 53.4
     unit: score
@@ -559,8 +556,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: critpt
     score: 16.86
     effort: max
@@ -692,8 +688,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 43.9
     unit: score
@@ -701,8 +696,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 29.6
     unit: score
@@ -710,8 +704,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 47.67
     optimized: true
@@ -822,8 +815,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 74.3
     unit: score
@@ -831,8 +823,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 55.7
     unit: score
@@ -840,8 +831,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 92.5
     effort: max
@@ -960,8 +950,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 73.6
     unit: score
@@ -969,8 +958,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 53.5
     unit: score
@@ -978,8 +966,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 93.5
     effort: high
@@ -1246,8 +1233,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 63.0
     unit: score
@@ -1255,8 +1241,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 47.2
     unit: score
@@ -1264,8 +1249,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 86.5
     effort: high
@@ -1374,8 +1358,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 77.4
     unit: score
@@ -1383,8 +1366,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 58.9
     unit: score
@@ -1392,8 +1374,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 97.5
     effort: xhigh
@@ -1417,19 +1398,19 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: browsecomp
     score: 90.4
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: critpt
     score: 32.3
     effort: max
@@ -1454,19 +1435,19 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: gpqa_diamond
     score: 94.6
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: gpqa_diamond
     score: 91.33
     effort: max
@@ -1482,29 +1463,29 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: mmmu_pro
     score: 84.6
     tools: true
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: osworld_2
     score: 62.6
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: otis_mock_aime
     score: 100.0
     effort: max
@@ -1528,19 +1509,19 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: terminal_bench_2_1
     score: 88.8
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   notes: OpenAI's own GPQA-D for this model exceeds Epoch's standardised run by roughly two to three
     points, which is what an unstated reasoning effort buys. Because ModelRecord.score_for ranks primary
     above independent, an unconditioned lab number wins whenever the caller does not pin an effort
@@ -1586,8 +1567,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 76.7
     unit: score
@@ -1595,8 +1575,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 55.0
     unit: score
@@ -1604,8 +1583,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 96.5
     effort: max
@@ -1629,19 +1607,19 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: browsecomp
     score: 87.5
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: critpt
     score: 30.0
     effort: max
@@ -1675,19 +1653,19 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: gpqa_diamond
     score: 92.9
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: gpqa_diamond
     score: 91.08
     effort: max
@@ -1703,29 +1681,29 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: mmmu_pro
     score: 82.0
     tools: true
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: osworld_2
     score: 50.2
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: otis_mock_aime
     score: 99.72
     effort: max
@@ -1749,19 +1727,19 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: terminal_bench_2_1
     score: 87.4
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   notes: OpenAI's own GPQA-D for this model exceeds Epoch's standardised run by roughly two to three
     points, which is what an unstated reasoning effort buys. Because ModelRecord.score_for ranks primary
     above independent, an unconditioned lab number wins whenever the caller does not pin an effort
@@ -1807,8 +1785,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 71.4
     unit: score
@@ -1816,8 +1793,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 51.2
     unit: score
@@ -1825,8 +1801,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 88.0
     effort: max
@@ -1850,19 +1825,19 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: browsecomp
     score: 83.3
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: critpt
     score: 20.6
     effort: max
@@ -1896,19 +1871,19 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: gpqa_diamond
     score: 92.3
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: gpqa_diamond
     score: 88.8
     effort: max
@@ -1924,29 +1899,29 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: mmmu_pro
     score: 79.5
     tools: true
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: osworld_2
     score: 45.6
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: otis_mock_aime
     score: 98.33
     effort: max
@@ -1970,19 +1945,19 @@ models:
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   - benchmark: terminal_bench_2_1
     score: 84.7
     source: OpenAI, GPT-5.6 launch page
     source_url: https://openai.com/index/gpt-5-6/
     as_of: '2026-07-09'
+    confidence: primary
     notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
       the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
       than guessed; pin an effort and prefer the Epoch entries when comparing.
-    confidence: primary
   notes: OpenAI's own GPQA-D for this model exceeds Epoch's standardised run by roughly two to three
     points, which is what an unstated reasoning effort buys. Because ModelRecord.score_for ranks primary
     above independent, an unconditioned lab number wins whenever the caller does not pin an effort
@@ -2063,8 +2038,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 74.9
     unit: score
@@ -2072,8 +2046,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 54.8
     unit: score
@@ -2081,8 +2054,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 95.0
     effort: xhigh
@@ -2145,29 +2117,29 @@ models:
     confidence: primary
   - benchmark: hle
     score: 41.4
-    tools: false
     effort: xhigh
+    tools: false
     source: OpenAI, GPT-5.5 launch material
     as_of: '2026-07-26'
     confidence: primary
   - benchmark: hle
     score: 52.2
-    tools: true
     effort: xhigh
+    tools: true
     source: OpenAI, GPT-5.5 launch material
     as_of: '2026-07-26'
     confidence: primary
   - benchmark: mmmu_pro
     score: 81.2
-    tools: false
     effort: xhigh
+    tools: false
     source: OpenAI, GPT-5.5 launch material
     as_of: '2026-07-26'
     confidence: primary
   - benchmark: mmmu_pro
     score: 83.2
-    tools: true
     effort: xhigh
+    tools: true
     source: OpenAI, GPT-5.5 launch material
     as_of: '2026-07-26'
     confidence: primary
@@ -2325,15 +2297,15 @@ models:
     confidence: primary
   - benchmark: hle
     score: 43.1
-    tools: false
     effort: xhigh
+    tools: false
     source: OpenAI, GPT-5.5 launch material
     as_of: '2026-07-26'
     confidence: primary
   - benchmark: hle
     score: 57.2
-    tools: true
     effort: xhigh
+    tools: true
     source: OpenAI, GPT-5.5 launch material
     as_of: '2026-07-26'
     confidence: primary
@@ -2394,8 +2366,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 71.1
     unit: score
@@ -2403,8 +2374,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 51.4
     unit: score
@@ -2412,8 +2382,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 93.67
     effort: xhigh
@@ -2485,15 +2454,15 @@ models:
     notes: Epoch model_version gpt-5.4-2026-03-05_xhigh
   - benchmark: hle
     score: 39.8
-    tools: false
     effort: xhigh
+    tools: false
     source: OpenAI, GPT-5.4 launch material
     as_of: '2026-07-26'
     confidence: primary
   - benchmark: hle
     score: 52.1
-    tools: true
     effort: xhigh
+    tools: true
     source: OpenAI, GPT-5.4 launch material
     as_of: '2026-07-26'
     confidence: primary
@@ -2590,8 +2559,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 56.1
     unit: score
@@ -2599,8 +2567,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 40.0
     unit: score
@@ -2608,8 +2575,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 63.67
     effort: xhigh
@@ -2668,19 +2634,19 @@ models:
     score: 88.0
     effort: xhigh
     source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
     confidence: secondary
     notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
       is an inference, so this is filed as secondary.
-    as_of: '2026-07-26'
   - benchmark: hle
     score: 28.2
     effort: xhigh
     tools: false
     source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
     confidence: secondary
     notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
       is an inference, so this is filed as secondary.
-    as_of: '2026-07-26'
   - benchmark: otis_mock_aime
     score: 87.21
     effort: high
@@ -2703,26 +2669,26 @@ models:
     score: 54.4
     effort: xhigh
     source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
     confidence: secondary
     notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
       is an inference, so this is filed as secondary.
-    as_of: '2026-07-26'
   - benchmark: tau2_bench_telecom
     score: 93.4
     effort: xhigh
     source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
     confidence: secondary
     notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
       is an inference, so this is filed as secondary.
-    as_of: '2026-07-26'
   - benchmark: terminal_bench_2_0
     score: 60.0
     effort: xhigh
     source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
     confidence: secondary
     notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
       is an inference, so this is filed as secondary.
-    as_of: '2026-07-26'
   notes: Epoch measured the headline benchmarks for this model at high effort and the ARC/FrontierMath
     rows at xhigh; the per-score notes record which.
 - id: gpt-5.4-nano
@@ -2762,8 +2728,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 56.1
     unit: score
@@ -2771,8 +2736,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 38.2
     unit: score
@@ -2780,8 +2744,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 51.5
     effort: xhigh
@@ -2840,19 +2803,19 @@ models:
     score: 82.8
     effort: xhigh
     source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
     confidence: secondary
     notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
       is an inference, so this is filed as secondary.
-    as_of: '2026-07-26'
   - benchmark: hle
     score: 24.3
     effort: xhigh
     tools: false
     source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
     confidence: secondary
     notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
       is an inference, so this is filed as secondary.
-    as_of: '2026-07-26'
   - benchmark: otis_mock_aime
     score: 87.77
     effort: high
@@ -2875,26 +2838,26 @@ models:
     score: 52.4
     effort: xhigh
     source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
     confidence: secondary
     notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
       is an inference, so this is filed as secondary.
-    as_of: '2026-07-26'
   - benchmark: tau2_bench_telecom
     score: 92.5
     effort: xhigh
     source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
     confidence: secondary
     notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
       is an inference, so this is filed as secondary.
-    as_of: '2026-07-26'
   - benchmark: terminal_bench_2_0
     score: 46.3
     effort: xhigh
     source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
     confidence: secondary
     notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
       is an inference, so this is filed as secondary.
-    as_of: '2026-07-26'
   notes: Epoch measured the headline benchmarks for this model at high effort and the ARC/FrontierMath
     rows at xhigh; the per-score notes record which.
 - id: gpt-5.4-pro
@@ -3102,8 +3065,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 69.2
     unit: score
@@ -3111,8 +3073,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 50.1
     unit: score
@@ -3120,8 +3081,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: swe_bench_pro_public
     score: 58.7
     harness: Antigravity (internal)
@@ -3171,8 +3131,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 70.1
     unit: score
@@ -3180,8 +3139,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 50.2
     unit: score
@@ -3189,8 +3147,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 92.5
     effort: high
@@ -3323,8 +3280,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 49.3
     unit: score
@@ -3332,8 +3288,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 36.5
     unit: score
@@ -3341,8 +3296,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   notes: No published benchmark scores located. Google publishes no knowledge cutoff on its models
     overview, so none is recorded. OpenRouter reports one for some Gemini models; that is a third-party
     claim and is not treated as a vendor statement.
@@ -3382,8 +3336,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 68.8
     unit: score
@@ -3391,8 +3344,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 46.5
     unit: score
@@ -3400,8 +3352,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: arc_agi_1
     score: 98.0
     optimized: true
@@ -3466,15 +3417,15 @@ models:
     notes: Epoch model_version gemini-3.1-pro-preview
   - benchmark: hle
     score: 44.4
-    tools: false
     effort: high
+    tools: false
     source: Google, Gemini 3.1 Pro model card
     as_of: '2026-02-19'
     confidence: primary
   - benchmark: hle
     score: 51.4
-    tools: true
     effort: high
+    tools: true
     source: Google, Gemini 3.1 Pro model card
     as_of: '2026-02-19'
     confidence: primary
@@ -3514,8 +3465,8 @@ models:
     effort: high
     source: Google, Gemini 3.1 Pro model card
     as_of: '2026-02-19'
-    notes: Average of 10 runs.
     confidence: primary
+    notes: Average of 10 runs.
   - benchmark: terminal_bench
     score: 80.2
     optimized: true
@@ -3611,8 +3562,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 33.3
     unit: score
@@ -3620,8 +3570,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 25.8
     unit: score
@@ -3629,8 +3578,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aider_polyglot
     score: 83.1
     optimized: true
@@ -3832,8 +3780,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 59.4
     unit: score
@@ -3841,8 +3788,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 44.3
     unit: score
@@ -3850,16 +3796,15 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: bbh
     score: 87.5
-    shots: 3
     effort: none
+    shots: 3
     source: DeepSeek, V4 base-model table
     as_of: '2026-04-24'
-    notes: Base model, not the instruct checkpoint.
     confidence: primary
+    notes: Base model, not the instruct checkpoint.
   - benchmark: critpt
     score: 12.86
     effort: max
@@ -3892,8 +3837,8 @@ models:
     effort: max
     source: DeepSeek, V4 model card
     as_of: '2026-04-24'
-    notes: temperature 1.0, top_p 1.0.
     confidence: primary
+    notes: temperature 1.0, top_p 1.0.
   - benchmark: gpqa_diamond
     score: 86.2
     effort: max
@@ -3908,31 +3853,31 @@ models:
     effort: none
     source: DeepSeek, V4 model card
     as_of: '2026-04-24'
-    notes: Non-Think mode; temperature 1.0, top_p 1.0.
     confidence: primary
+    notes: Non-Think mode; temperature 1.0, top_p 1.0.
   - benchmark: hle
     score: 37.7
-    tools: false
     effort: max
+    tools: false
     source: DeepSeek, V4 model card
     as_of: '2026-04-24'
     confidence: primary
   - benchmark: hle
     score: 48.2
-    tools: true
     effort: max
+    tools: true
     source: DeepSeek, V4 model card
     as_of: '2026-04-24'
     confidence: primary
   - benchmark: humaneval
     score: 76.8
-    shots: 0
     effort: none
+    shots: 0
     source: DeepSeek, V4 base-model table
     as_of: '2026-04-24'
+    confidence: primary
     notes: 'Base model, not the instruct checkpoint. Contaminated benchmark: treat as a tokenizer/formatting
       check, not a capability measure.'
-    confidence: primary
   - benchmark: livecodebench
     score: 93.5
     effort: max
@@ -4026,8 +3971,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 56.2
     unit: score
@@ -4035,8 +3979,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 40.3
     unit: score
@@ -4044,38 +3987,37 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: bbh
     score: 86.9
-    shots: 3
     effort: none
+    shots: 3
     source: DeepSeek, V4 base-model table
     as_of: '2026-04-24'
-    notes: Base model, not the instruct checkpoint.
     confidence: primary
+    notes: Base model, not the instruct checkpoint.
   - benchmark: gpqa_diamond
     score: 88.1
     effort: max
     source: DeepSeek, V4 model card
     as_of: '2026-04-24'
-    notes: temperature 1.0, top_p 1.0.
     confidence: primary
+    notes: temperature 1.0, top_p 1.0.
   - benchmark: gpqa_diamond
     score: 71.2
     effort: none
     source: DeepSeek, V4 model card
     as_of: '2026-04-24'
-    notes: Non-Think mode; temperature 1.0, top_p 1.0.
     confidence: primary
+    notes: Non-Think mode; temperature 1.0, top_p 1.0.
   - benchmark: humaneval
     score: 69.5
-    shots: 0
     effort: none
+    shots: 0
     source: DeepSeek, V4 base-model table
     as_of: '2026-04-24'
-    notes: Base model, not the instruct checkpoint.
     confidence: primary
+    notes: Base model, not the instruct checkpoint.
   - benchmark: livecodebench
     score: 91.6
     effort: max
@@ -4133,8 +4075,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 68.8
     unit: score
@@ -4142,8 +4083,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 51.1
     unit: score
@@ -4151,14 +4091,13 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aime_2026
     score: 99.2
     source: Z.ai, GLM-5.2 model card
     as_of: '2026-06-16'
-    notes: Saturated; 30 items, so a single miss moves the score by 3.3 points.
     confidence: primary
+    notes: Saturated; 30 items, so a single miss moves the score by 3.3 points.
   - benchmark: arc_agi_1
     score: 77.0
     optimized: true
@@ -4206,8 +4145,8 @@ models:
     score: 91.2
     source: Z.ai, GLM-5.2 model card
     as_of: '2026-06-16'
-    notes: temperature 1.0, top_p 0.95, max generation 163840 tokens.
     confidence: primary
+    notes: temperature 1.0, top_p 0.95, max generation 163840 tokens.
   - benchmark: gpqa_diamond
     score: 89.14
     effort: max
@@ -4272,8 +4211,8 @@ models:
     harness: best of those tried
     source: Z.ai, GLM-5.2 model card
     as_of: '2026-06-16'
-    notes: Harness-shopped figure; the Terminus-2 number is the comparable one.
     confidence: primary
+    notes: Harness-shopped figure; the Terminus-2 number is the comparable one.
   notes: '743-753B MoE, MIT licence, weights at zai-org/GLM-5.2. Its ARC-AGI-2 of 22.78 against GPT-5.6
     Sol''s 92.5 is the widest gap in this file and makes ARC-AGI-2 the single best discriminator available:
     seven items per arm suffice to separate them.'
@@ -4305,8 +4244,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 55.8
     unit: score
@@ -4314,8 +4252,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 40.2
     unit: score
@@ -4323,8 +4260,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: critpt
     score: 4.57
     optimized: false
@@ -4398,8 +4334,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 76.2
     unit: score
@@ -4407,8 +4342,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 57.1
     unit: score
@@ -4416,8 +4350,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: critpt
     score: 23.4
     effort: max
@@ -4504,8 +4437,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 60.8
     unit: score
@@ -4513,8 +4445,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 41.9
     unit: score
@@ -4522,8 +4453,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: critpt
     score: 10.0
     optimized: false
@@ -4600,8 +4530,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 66.0
     unit: score
@@ -4609,8 +4538,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 46.0
     unit: score
@@ -4618,8 +4546,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: critpt
     score: 13.43
     optimized: false
@@ -4709,8 +4636,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 55.9
     unit: score
@@ -4718,8 +4644,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 39.0
     unit: score
@@ -4727,8 +4652,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   notes: Closed weights, API only. No Epoch run and no lab figures with stated conditions.
 - id: Qwen3.6-35B-A3B
   vendor: alibaba
@@ -4760,8 +4684,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 41.9
     unit: score
@@ -4769,8 +4692,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 31.6
     unit: score
@@ -4778,8 +4700,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: critpt
     score: 0.29
     optimized: false
@@ -4830,8 +4751,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 46.9
     unit: score
@@ -4839,8 +4759,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 29.9
     unit: score
@@ -4848,20 +4767,19 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: swe_bench_verified
     score: 77.6
     source: Mistral, Medium 3.5 announcement
     as_of: '2026-04-30'
-    notes: Reasoning effort not stated.
     confidence: primary
+    notes: Reasoning effort not stated.
   - benchmark: tau3_telecom
     score: 91.4
     source: Mistral, Medium 3.5 announcement
     as_of: '2026-04-30'
-    notes: Reasoning effort not stated.
     confidence: primary
+    notes: Reasoning effort not stated.
   notes: 128B dense, modified MIT licence. Epoch's 'Mistral Medium 3' rows are model_version mistral-medium-2505,
     a different model, and are deliberately not attached here.
 - id: mistral-small-2603
@@ -4894,8 +4812,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 26.6
     unit: score
@@ -4903,8 +4820,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 19.6
     unit: score
@@ -4912,8 +4828,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   notes: The 2603 suffix is a release stamp, not a date the loader should strip, which is why normalisation
     only removes full eight-digit or ISO stamps.
 - id: grok-4.5
@@ -4949,8 +4864,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 72.4
     unit: score
@@ -4958,8 +4872,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 53.8
     unit: score
@@ -4967,13 +4880,12 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: deepswe_1_0
     score: 62.0
     source: Third-party summaries of the Grok 4.5 launch
-    confidence: secondary
     as_of: '2026-07-08'
+    confidence: secondary
   - benchmark: frontiermath_t123
     score: 57.19
     effort: high
@@ -5022,13 +4934,13 @@ models:
   - benchmark: swe_bench_pro
     score: 64.7
     source: Third-party summaries of the Grok 4.5 launch
-    confidence: secondary
     as_of: '2026-07-08'
+    confidence: secondary
   - benchmark: terminal_bench_2_1
     score: 83.3
     source: Third-party summaries of the Grok 4.5 launch
-    confidence: secondary
     as_of: '2026-07-08'
+    confidence: secondary
   notes: 'xAI publishes no benchmark scores on its documentation site, so the three figures above
     have no primary source and are marked secondary. Epoch''s independent runs are the load-bearing
     reference for this model. Pricing is tiered by context length: 2/6 USD per MTok below 200k and
@@ -5067,8 +4979,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 42.2
     unit: score
@@ -5076,8 +4987,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 37.6
     unit: score
@@ -5085,8 +4995,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: critpt
     score: 8.0
     effort: high
@@ -5158,16 +5067,16 @@ models:
     score: 90.0
     n_items: 300
     source: Cohere, Command A+ announcement
-    notes: pass@1 over 30 questions x 10 attempts.
     as_of: '2026-07-26'
     confidence: primary
+    notes: pass@1 over 30 questions x 10 attempts.
   - benchmark: ifbench
     score: 74.0
     n_items: 1470
     source: Cohere, Command A+ announcement
-    notes: Single-turn, loose scoring.
     as_of: '2026-07-26'
     confidence: primary
+    notes: Single-turn, loose scoring.
   - benchmark: mathvista
     score: 80.6
     source: Cohere, Command A+ announcement
@@ -5230,8 +5139,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 23.0
     unit: score
@@ -5239,8 +5147,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 18.2
     unit: score
@@ -5248,8 +5155,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aime_2025
     score: 91.0
     source: Amazon, Nova 2 technical report
@@ -5258,34 +5164,34 @@ models:
   - benchmark: gpqa_diamond
     score: 79.6
     source: Amazon, Nova 2 technical report
-    notes: Two-turn prompt template.
     as_of: '2026-07-26'
     confidence: primary
+    notes: Two-turn prompt template.
   - benchmark: ifbench
     score: 70.8
     source: Amazon, Nova 2 technical report
-    notes: Prompt-level loose scoring.
     as_of: '2026-07-26'
     confidence: primary
+    notes: Prompt-level loose scoring.
   - benchmark: livecodebench
     score: 71.0
     source: Amazon, Nova 2 technical report
-    notes: v5 release.
     as_of: '2026-07-26'
     confidence: primary
+    notes: v5 release.
   - benchmark: mmlu_pro
     score: 80.9
     shots: 0
     source: Amazon, Nova 2 technical report
-    notes: 0-shot chain of thought.
     as_of: '2026-07-26'
     confidence: primary
+    notes: 0-shot chain of thought.
   - benchmark: tau2_bench_telecom
     score: 76.0
     source: Amazon, Nova 2 technical report
-    notes: Verified split, average of 3 runs.
     as_of: '2026-07-26'
     confidence: primary
+    notes: Verified split, average of 3 runs.
   - benchmark: terminal_bench_1_0
     score: 32.5
     source: Amazon, Nova 2 technical report
@@ -5352,8 +5258,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 71.3
     unit: score
@@ -5361,8 +5266,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 50.6
     unit: score
@@ -5370,35 +5274,34 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: hle
     score: 52.2
     tools: false
     source: Third-party summaries of the Muse Spark 1.1 launch
-    confidence: secondary
     as_of: '2026-07-26'
+    confidence: secondary
   - benchmark: hle
     score: 62.1
     tools: true
     source: Third-party summaries of the Muse Spark 1.1 launch
-    confidence: secondary
     as_of: '2026-07-26'
+    confidence: secondary
   - benchmark: mcp_atlas
     score: 88.1
     source: Third-party summaries of the Muse Spark 1.1 launch
-    confidence: secondary
     as_of: '2026-07-26'
+    confidence: secondary
   - benchmark: swe_bench_pro
     score: 61.5
     source: Third-party summaries of the Muse Spark 1.1 launch
-    confidence: secondary
     as_of: '2026-07-26'
+    confidence: secondary
   - benchmark: terminal_bench_2_1
     score: 80.0
     source: Third-party summaries of the Muse Spark 1.1 launch
-    confidence: secondary
     as_of: '2026-07-26'
+    confidence: secondary
   notes: Closed weights from Meta Superintelligence Labs; the Llama line is discontinued. Both primary
     Newsroom posts contain zero quantitative data, so every figure here is secondary. Epoch carries
     rows for an earlier 'Muse Spark' (model_version muse-spark, 2026-04-08); that is version 1.0 and
@@ -5433,8 +5336,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_coding_index
     score: 58.6
     unit: score
@@ -5442,8 +5344,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: aa_intelligence_index
     score: 44.4
     unit: score
@@ -5451,8 +5352,7 @@ models:
     source_url: https://openrouter.ai/api/v1/models
     as_of: '2026-07-26'
     confidence: independent
-    notes: Composite index, not a single benchmark. Comparable across models only because Artificial
-      Analysis fixes the conditions; the conditions themselves are not published per model.
+    notes: Composite index, not a single benchmark; conditions unpublished.
   - benchmark: critpt
     score: 3.71
     optimized: false
