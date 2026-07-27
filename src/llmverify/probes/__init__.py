@@ -69,7 +69,9 @@ class Budget:
     samples: int = 0
     started_at: float = field(default_factory=time.monotonic)
 
-    def charge(self, input_tokens: int | None, output_tokens: int | None, *, samples: int = 1) -> float:
+    def charge(
+        self, input_tokens: int | None, output_tokens: int | None, *, samples: int = 1
+    ) -> float:
         """Record usage and return the estimated marginal cost."""
         tin, tout = input_tokens or 0, output_tokens or 0
         self.input_tokens += tin
@@ -89,13 +91,11 @@ class Budget:
 
     @property
     def exhausted(self) -> bool:
-        if self.max_cost_usd is not None and self.spent_usd >= self.max_cost_usd:
-            return True
-        if self.max_samples is not None and self.samples >= self.max_samples:
-            return True
-        if self.max_wall_s is not None and self.elapsed_s >= self.max_wall_s:
-            return True
-        return False
+        return (
+            (self.max_cost_usd is not None and self.spent_usd >= self.max_cost_usd)
+            or (self.max_samples is not None and self.samples >= self.max_samples)
+            or (self.max_wall_s is not None and self.elapsed_s >= self.max_wall_s)
+        )
 
     @property
     def remaining_samples(self) -> int | None:

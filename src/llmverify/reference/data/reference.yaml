@@ -1,0 +1,5365 @@
+# llmverify reference snapshot
+#
+# What a first-party endpoint of each model looks like, and what it scores. Every
+# number here is what a verdict is measured against, so each one carries its
+# source, the date it was read and a confidence level.
+#
+# confidence
+#   primary      the lab's own publication
+#   independent  Epoch AI, ARC Prize, Artificial Analysis
+#   secondary    press or third-party write-ups, including figures triangulated
+#                from convergent summaries when the lab published only images
+#   unverified   flagged as unconfirmed at the source
+#
+# Conventions
+#   * effort, tools and optimized are filled only when the publisher stated them.
+#     Null means unknown, never "default". Comparing scores across efforts is
+#     invalid, and a wrong effort label is how this tool would accuse an honest
+#     provider of fraud.
+#   * training_cutoff holds the cutoff a vendor publishes. knowledge_cutoff is
+#     reserved for a cutoff that has actually been measured by probing, which is
+#     usually earlier, and is left null throughout this snapshot.
+#   * Where a vendor gives only a month, the date is recorded as the first of
+#     that month. Treat month precision as the real resolution.
+#   * ModelRecord.score_for ranks primary above independent. A lab number with no
+#     stated effort will therefore win over Epoch's conditioned run unless the
+#     caller passes effort=. Callers should pass it.
+#   * Benchmark keys distinguish variants that are not comparable:
+#     swe_bench_verified / swe_bench_pro / swe_bench_pro_public, and
+#     terminal_bench (Epoch, v2.0 leaderboard) / terminal_bench_2_0 /
+#     terminal_bench_2_1 / terminal_bench_hard / terminal_bench_1_0.
+#   * Saturated benchmarks are marked in the relevant notes. GPQA Diamond spans
+#     only 71.3 to 92.8 across 35 current models with a standard deviation of 5.0
+#     and has 198 items; separating two frontier models on it alone would need
+#     tens of thousands of items. Never use it by itself.
+#
+#   * aa_intelligence_index, aa_coding_index and aa_agentic_index are Artificial
+#     Analysis composites rather than single benchmarks. They are comparable
+#     across models because Artificial Analysis fixes the conditions, but those
+#     conditions are not published per model, so treat them as weak evidence.
+#
+# Attribution
+#   Epoch AI's Capabilities Index data is CC-BY and must be credited; see NOTICE.
+#   Artificial Analysis index values reach this file through OpenRouter's public
+#   API and carry Artificial Analysis's own terms.
+#
+# Regenerate the machine-readable parts with llmverify.reference.refresh, which
+# diffs against this file rather than overwriting it. Rewriting the file drops
+# these comments, so keep provenance prose in `notes` fields, which survive.
+schema_version: 1
+as_of: '2026-07-26'
+generated_by: manual
+sources:
+  epoch_eci: https://epoch.ai/data/eci_benchmarks.csv
+  openrouter_models: https://openrouter.ai/api/v1/models
+  openrouter_endpoints: https://openrouter.ai/api/v1/models/{author}/{slug}/endpoints
+  artificial_analysis: https://artificialanalysis.ai/api/v2/data/llms/models
+  arc_prize: https://arcprize.org/leaderboard
+  terminal_bench: https://www.tbench.ai/leaderboard/terminal-bench/2.0
+  aider_polyglot: https://raw.githubusercontent.com/Aider-AI/aider/main/aider/website/_data/polyglot_leaderboard.yml
+  anthropic_docs: https://platform.claude.com/docs/
+  anthropic_claude_opus_5: https://www.anthropic.com/news/claude-opus-5
+  openai_docs: https://developers.openai.com/api/docs/
+  openai_gpt_5_6: https://openai.com/index/gpt-5-6/
+  xai_docs: https://docs.x.ai/
+  helm: https://storage.googleapis.com/crfm-helm-public/
+  huggingface_datasets_server: https://datasets-server.huggingface.co/
+  lmarena: https://datasets-server.huggingface.co/rows?dataset=lmarena-ai%2Fleaderboard-dataset&config=text&split=latest&offset=0&length=100
+families:
+- family: anthropic
+  response_id_prefix: msg_
+  supports_logprobs: false
+  supports_seed: false
+  has_system_fingerprint: false
+  usage_keys:
+  - input_tokens
+  - output_tokens
+  - cache_creation_input_tokens
+  - cache_read_input_tokens
+  - cache_creation
+  - server_tool_use
+  - output_tokens_details
+  finish_reasons:
+  - end_turn
+  - max_tokens
+  - stop_sequence
+  - tool_use
+  - pause_turn
+  - refusal
+  - model_context_window_exceeded
+  notes: 'Keys are the top level of the usage object; cache_creation nests ephemeral_5m_input_tokens
+    and ephemeral_1h_input_tokens, and output_tokens_details nests thinking_tokens. Responses also
+    carry service_tier (standard, priority or batch), inference_geo and container. The strongest signal
+    in this family is the thinking-block signature: Anthropic encrypts thinking content and verifies
+    the signature when the block is replayed, so a tampered value returns 400 and a reseller cannot
+    produce a valid one without routing through genuine Anthropic inference. Two absences are as diagnostic
+    as any presence -- an endpoint claiming a Claude model while honouring seed or returning logprobs
+    is not Anthropic. POST /v1/messages/count_tokens exposes the real tokenizer free of charge. Anthropic
+    warns that serving infrastructure changes can alter observable behaviour while model id and weights
+    stay fixed, so behavioural-drift detectors will produce false positives against first-party Anthropic.'
+- family: openai
+  response_id_prefix: chatcmpl-
+  supports_logprobs: true
+  supports_seed: true
+  has_system_fingerprint: true
+  usage_keys:
+  - prompt_tokens
+  - completion_tokens
+  - completion_tokens_details
+  notes: Shape given is Chat Completions, which is what this package's OpenAI adapter speaks. completion_tokens_details
+    nests reasoning_tokens, audio_tokens, accepted_prediction_tokens and rejected_prediction_tokens.
+    The Responses API is a different shape -- input_tokens and output_tokens with only output_tokens_details.reasoning_tokens
+    -- which makes the usage object a reliable discriminator between the two endpoints. top_logprobs
+    accepts 0 to 20 and untracked tokens report a logprob of -9999.0; note that LiteLLM's documentation
+    still claims a 0 to 5 range. system_fingerprint is present but soft-deprecated on Chat Completions
+    and absent from Responses; seed is likewise Chat Completions only, and OpenAI does not guarantee
+    determinism from it. Reasoning models appear to refuse logprobs in practice, but that could not
+    be confirmed as an absolute rule. The finish_reason vocabulary was not re-verified for this snapshot
+    and is therefore left empty rather than filled from memory.
+- family: gemini
+  has_system_fingerprint: false
+  usage_keys:
+  - promptTokenCount
+  - cachedContentTokenCount
+  - candidatesTokenCount
+  - toolUsePromptTokenCount
+  - thoughtsTokenCount
+  - totalTokenCount
+  notes: 'Keys are the top level of usageMetadata. GenerateContentResponse echoes modelVersion, which
+    is the closest thing this family has to an identity field, and there is no system_fingerprint
+    anywhere. A countTokens endpoint exists. supports_logprobs and supports_seed are left null on
+    purpose: responseLogprobs, avgLogprobs and seed could not be reconfirmed against Google''s own
+    documentation for this snapshot, and the only evidence to hand is OpenRouter''s parameter list,
+    which advertises seed but not logprobs for Gemini models while exposing logprobs for the open
+    Gemma models. The v1beta models endpoint returns 403 without a key, so the catalogue cannot be
+    read anonymously.'
+models:
+- id: claude-opus-5
+  vendor: anthropic
+  family: anthropic
+  display_name: Claude Opus 5
+  aliases:
+  - anthropic/claude-opus-5
+  - anthropic/claude-opus-5-20260723
+  - claude-opus-5-20260723
+  - ~anthropic/claude-opus-latest
+  released: '2026-07-24'
+  training_cutoff: '2026-05-01'
+  reasoning: true
+  default_effort: high
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - medium
+  - low
+  context_window: 1000000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 5.0
+    output_per_mtok: 25.0
+    cache_read_per_mtok: 0.5
+    cache_write_per_mtok: 6.25
+    source: https://openrouter.ai/api/v1/models
+  token_accounting:
+    tool_overhead_auto: 286
+    tool_overhead_forced: 406
+    bash_tool_overhead: 325
+    source: Anthropic pricing page, tool-use system-prompt token table
+    as_of: '2026-07-26'
+  scores:
+  - benchmark: aa_agentic_index
+    score: 55.3
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 78.0
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 60.7
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 97.5
+    effort: high
+    n_items: 400
+    source: Anthropic, Claude Opus 5 announcement
+    source_url: https://www.anthropic.com/news/claude-opus-5
+    as_of: '2026-07-24'
+    confidence: primary
+    notes: Public eval set; Anthropic reports the same 97.5 at max and at high effort.
+  - benchmark: arc_agi_1
+    score: 97.5
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-5_max; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 88.3
+    effort: high
+    n_items: 120
+    source: ARC Prize, via Anthropic's Claude Opus 5 announcement
+    source_url: https://arcprize.org/leaderboard
+    as_of: '2026-07-24'
+    confidence: independent
+  - benchmark: arc_agi_2
+    score: 90.4
+    effort: max
+    n_items: 120
+    source: ARC Prize, via Anthropic's Claude Opus 5 announcement
+    source_url: https://arcprize.org/leaderboard
+    as_of: '2026-07-24'
+    confidence: independent
+    notes: ARC Prize runs this evaluation itself rather than accepting a lab number.
+  - benchmark: arc_agi_2
+    score: 88.33
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-5_max
+  - benchmark: arc_agi_3
+    score: 30.2
+    effort: high
+    n_items: 25
+    source: Anthropic, Claude Opus 5 announcement
+    source_url: https://www.anthropic.com/news/claude-opus-5
+    as_of: '2026-07-24'
+    confidence: primary
+    notes: 25 environments.
+  - benchmark: critpt
+    score: 29.14
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-5_max
+  - benchmark: frontier_bench
+    score: 43.3
+    harness: mini-SWE-agent on GKE
+    source: Anthropic, Claude Opus 5 announcement (Frontier-Bench v0.1)
+    source_url: https://www.anthropic.com/news/claude-opus-5
+    as_of: '2026-07-24'
+    confidence: primary
+    notes: Mean reward over 5 attempts, not an accuracy.
+  - benchmark: frontiermath_t123
+    score: 85.61
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-5_max
+  - benchmark: frontiermath_t4
+    score: 73.17
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-5_max
+  - benchmark: gdpval_aa_v2
+    score: 1861
+    unit: elo
+    effort: max
+    source: Anthropic, Claude Opus 5 announcement
+    source_url: https://www.anthropic.com/news/claude-opus-5
+    as_of: '2026-07-24'
+    confidence: primary
+  - benchmark: gpqa_diamond
+    score: 91.84
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-5_max
+  - benchmark: hle
+    score: 56.3
+    tools: false
+    source: Press coverage of the Claude Opus 5 launch
+    as_of: '2026-07-24'
+    confidence: secondary
+    notes: Not located on an Anthropic page; conditions unstated.
+  - benchmark: hle
+    score: 64.7
+    tools: true
+    source: Press coverage of the Claude Opus 5 launch
+    as_of: '2026-07-24'
+    confidence: secondary
+    notes: Not located on an Anthropic page; conditions unstated.
+  - benchmark: otis_mock_aime
+    score: 98.89
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-5_max
+  - benchmark: simpleqa_verified
+    score: 56.7
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-5_max
+  notes: 'Tool-overhead of 286/406 tokens is the cheapest decisive fingerprint for this model: it
+    is 4 tokens away from Opus 4.8 and 210 from Opus 4.7, and no reseller can fake it without running
+    the real system prompt. Epoch labels its ARC-AGI-2 run (88.33) as max effort, but Anthropic reports
+    90.4 at max and 88.3 at high, so Epoch''s effort label for that row is doubtful. OpenRouter also
+    lists anthropic/claude-opus-5-fast (same weights, priority serving tier, 10/50 USD per MTok);
+    it is deliberately not aliased here so that price comparisons stay meaningful.'
+- id: claude-fable-5
+  vendor: anthropic
+  family: anthropic
+  display_name: Claude Fable 5
+  aliases:
+  - anthropic/claude-fable-5
+  - anthropic/claude-5-fable-20260609
+  - claude-fable-5-20260609
+  - ~anthropic/claude-fable-latest
+  released: '2026-06-09'
+  training_cutoff: '2026-01-01'
+  reasoning: true
+  default_effort: high
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - medium
+  - low
+  context_window: 1000000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 10.0
+    output_per_mtok: 50.0
+    cache_read_per_mtok: 1.0
+    cache_write_per_mtok: 12.5
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 52.8
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 76.5
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 59.9
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: critpt
+    score: 28.57
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-fable-5_max
+  - benchmark: frontiermath_t123
+    score: 87.02
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-fable-5_max
+  - benchmark: frontiermath_t4
+    score: 87.8
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-fable-5_max
+  - benchmark: gpqa_diamond
+    score: 92.6
+    source: Independent evaluation reported at the Claude Fable 5 launch
+    as_of: '2026-06-09'
+    confidence: independent
+  - benchmark: hle
+    score: 53.3
+    source: Claude Fable 5 launch coverage
+    as_of: '2026-06-09'
+    confidence: secondary
+    notes: Tool setting unstated.
+  - benchmark: otis_mock_aime
+    score: 99.72
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-fable-5_max
+  - benchmark: simpleqa_verified
+    score: 68.3
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-fable-5_xhigh
+  - benchmark: swe_bench_pro
+    score: 80.3
+    source: Anthropic, Claude Fable 5 launch material
+    as_of: '2026-06-09'
+    confidence: primary
+  - benchmark: swe_bench_verified
+    score: 95.0
+    source: Independent evaluation reported at the Claude Fable 5 launch
+    as_of: '2026-06-09'
+    confidence: independent
+  - benchmark: terminal_bench_2_1
+    score: 88.0
+    source: Anthropic, Claude Fable 5 launch material
+    as_of: '2026-06-09'
+    confidence: secondary
+  notes: Anthropic publishes no tool-use overhead for Fable 5, so the token-accounting probe has nothing
+    to compare against here. Fable shares the post-4.7 tokenizer, which emits roughly 30 percent more
+    tokens for identical text than 4.6-and-earlier.
+- id: claude-mythos-5
+  vendor: anthropic
+  family: anthropic
+  display_name: Claude Mythos 5
+  aliases:
+  - anthropic/claude-mythos-5
+  context_window: 1000000
+  max_output_tokens: 128000
+  reasoning: true
+  modalities:
+  - text
+  - image
+  - file
+  default_effort: high
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - medium
+  - low
+  pricing:
+    input_per_mtok: 10.0
+    output_per_mtok: 50.0
+    source: https://platform.claude.com/docs/
+  notes: Invite-only, absent from OpenRouter's catalogue and from every leaderboard checked. No benchmark
+    score is recorded because none has been published; a benchmark probe against this id can only
+    report that it has no reference. Shares the post-4.7 tokenizer.
+- id: claude-sonnet-5
+  vendor: anthropic
+  family: anthropic
+  display_name: Claude Sonnet 5
+  aliases:
+  - anthropic/claude-sonnet-5
+  - anthropic/claude-sonnet-5-20260630
+  - claude-sonnet-5-20260630
+  - ~anthropic/claude-sonnet-latest
+  released: '2026-06-30'
+  training_cutoff: '2026-01-01'
+  reasoning: true
+  default_effort: high
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - medium
+  - low
+  context_window: 1000000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 2.0
+    output_per_mtok: 10.0
+    cache_read_per_mtok: 0.2
+    cache_write_per_mtok: 2.5
+    source: https://openrouter.ai/api/v1/models
+  token_accounting:
+    tool_overhead_auto: 354
+    tool_overhead_forced: 474
+    source: Anthropic pricing page, tool-use system-prompt token table
+    as_of: '2026-07-26'
+  scores:
+  - benchmark: aa_agentic_index
+    score: 46.7
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 71.5
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 53.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: critpt
+    score: 16.86
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-5_max
+  - benchmark: frontiermath_t123
+    score: 65.61
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-5_max
+  - benchmark: frontiermath_t4
+    score: 29.27
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-5_max
+  - benchmark: gdpval_aa_v2
+    score: 1618
+    unit: elo
+    source: Anthropic, Claude Sonnet 5 launch material
+    as_of: '2026-06-30'
+    confidence: secondary
+  - benchmark: gpqa_diamond
+    score: 87.37
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-5_xhigh
+  - benchmark: hle
+    score: 43.2
+    tools: false
+    source: Anthropic, Claude Sonnet 5 launch material
+    as_of: '2026-06-30'
+    confidence: secondary
+  - benchmark: hle
+    score: 57.4
+    tools: true
+    source: Anthropic, Claude Sonnet 5 launch material
+    as_of: '2026-06-30'
+    confidence: secondary
+  - benchmark: osworld_verified
+    score: 81.2
+    source: Anthropic, Claude Sonnet 5 launch material
+    as_of: '2026-06-30'
+    confidence: secondary
+  - benchmark: otis_mock_aime
+    score: 94.72
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-5_xhigh
+  - benchmark: simpleqa_verified
+    score: 25.0
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-5_xhigh
+  - benchmark: swe_bench_pro
+    score: 63.2
+    source: Anthropic, Claude Sonnet 5 launch material
+    as_of: '2026-06-30'
+    confidence: secondary
+  - benchmark: terminal_bench_2_1
+    score: 80.4
+    harness: Terminus-2
+    source: Anthropic, Claude Sonnet 5 launch material
+    as_of: '2026-06-30'
+    confidence: secondary
+  notes: Anthropic renders its comparison tables as images, so the launch figures above were triangulated
+    from three convergent secondary write-ups rather than read off the page; they are marked secondary
+    for that reason. Tool overhead 354/474 places Sonnet 5 unambiguously between the Opus 5 (286/406)
+    and 4.6-generation (496-497/588-589) groups. List price rises to 3/15 USD per MTok after 2026-08-31.
+- id: claude-haiku-4-5-20251001
+  vendor: anthropic
+  family: anthropic
+  display_name: Claude Haiku 4.5
+  aliases:
+  - claude-haiku-4-5
+  - anthropic/claude-haiku-4.5
+  - anthropic/claude-4.5-haiku-20251001
+  - ~anthropic/claude-haiku-latest
+  released: '2025-10-15'
+  training_cutoff: '2025-02-01'
+  reasoning: true
+  context_window: 200000
+  max_output_tokens: 64000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 1.0
+    output_per_mtok: 5.0
+    cache_read_per_mtok: 0.1
+    cache_write_per_mtok: 1.25
+    source: https://openrouter.ai/api/v1/models
+  token_accounting:
+    tool_overhead_auto: 496
+    tool_overhead_forced: 588
+    source: Anthropic pricing page, tool-use system-prompt token table; Anthropic's pricing table
+      gives this model group as 496-497 tokens (auto/none) and 588-589 (any/tool) without saying which
+      member takes which value, so allow +/-1.
+    as_of: '2026-07-26'
+  scores:
+  - benchmark: aa_agentic_index
+    score: 16.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 43.9
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 29.6
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 47.67
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-haiku-4-5-20251001_32K; 32K thinking budget, effort not stated
+  - benchmark: arc_agi_2
+    score: 4.03
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-haiku-4-5-20251001_32K; 32K thinking budget, effort not stated
+  - benchmark: critpt
+    score: 0.0
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-haiku-4-5-20251001_unknown
+  - benchmark: gpqa_diamond
+    score: 61.62
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-haiku-4-5-20251001_32K; 32K thinking budget, effort not stated
+  - benchmark: math_level_5
+    score: 96.36
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-haiku-4-5-20251001_32K; 32K thinking budget, effort not stated
+  - benchmark: otis_mock_aime
+    score: 66.63
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-haiku-4-5-20251001_32K; 32K thinking budget, effort not stated
+  - benchmark: simpleqa_verified
+    score: 5.9
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-haiku-4-5-20251001_32K; 32K thinking budget, effort not stated
+  - benchmark: terminal_bench
+    score: 35.5
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-haiku-4-5-20251001_unknown; Epoch relays this figure from Terminal-Bench
+      v2 Leaderboard
+  notes: 'Pre-4.6 naming: the dateless alias claude-haiku-4-5 is an evergreen pointer, whereas from
+    the 4.6 generation onward a dateless id is itself a pinned snapshot. Uses the 4.6-and-earlier
+    tokenizer and the 244-token bash-tool overhead.'
+- id: claude-opus-4-8
+  vendor: anthropic
+  family: anthropic
+  display_name: Claude Opus 4.8
+  aliases:
+  - anthropic/claude-opus-4.8
+  - anthropic/claude-4.8-opus-20260528
+  released: '2026-05-28'
+  reasoning: true
+  default_effort: high
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - medium
+  - low
+  context_window: 1000000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 5.0
+    output_per_mtok: 25.0
+    cache_read_per_mtok: 0.5
+    cache_write_per_mtok: 6.25
+    source: https://openrouter.ai/api/v1/models
+  token_accounting:
+    tool_overhead_auto: 290
+    tool_overhead_forced: 410
+    bash_tool_overhead: 325
+    source: Anthropic pricing page, tool-use system-prompt token table
+    as_of: '2026-07-26'
+  scores:
+  - benchmark: aa_agentic_index
+    score: 47.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 74.3
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 55.7
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 92.5
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-8_max; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 72.08
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-8_high
+  - benchmark: critpt
+    score: 20.86
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-8_max
+  - benchmark: frontiermath_t123
+    score: 80.0
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-8_max
+  - benchmark: frontiermath_t4
+    score: 56.1
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-8_max
+  - benchmark: gpqa_diamond
+    score: 88.05
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-8_max
+  - benchmark: otis_mock_aime
+    score: 98.33
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-8_max
+  - benchmark: simpleqa_verified
+    score: 39.5
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-8_max
+  notes: Tool overhead 290/410 sits 4 tokens from Opus 5, so token accounting alone cannot separate
+    4.8 from 5; use it together with the tokenizer ratio and benchmark evidence. Secondary sources
+    circulate a GPQA-D of 93.6 and SWE-bench Verified of 88.6 for this model; both conflict with Epoch's
+    standardised runs recorded here and neither states its conditions, so they are not adopted.
+- id: claude-opus-4-7
+  vendor: anthropic
+  family: anthropic
+  display_name: Claude Opus 4.7
+  aliases:
+  - anthropic/claude-opus-4.7
+  - anthropic/claude-4.7-opus-20260416
+  released: '2026-04-16'
+  reasoning: true
+  default_effort: high
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - medium
+  - low
+  context_window: 1000000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 5.0
+    output_per_mtok: 25.0
+    cache_read_per_mtok: 0.5
+    cache_write_per_mtok: 6.25
+    source: https://openrouter.ai/api/v1/models
+  token_accounting:
+    tool_overhead_auto: 675
+    tool_overhead_forced: 804
+    bash_tool_overhead: 325
+    source: Anthropic pricing page, tool-use system-prompt token table
+    as_of: '2026-07-26'
+  scores:
+  - benchmark: aa_agentic_index
+    score: 44.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 73.6
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 53.5
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 93.5
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-7_high; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 75.8
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-7_max
+  - benchmark: critpt
+    score: 12.0
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-7_max
+  - benchmark: frontiermath_t123
+    score: 70.18
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-7_max
+  - benchmark: frontiermath_t4
+    score: 31.71
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-7_max
+  - benchmark: gpqa_diamond
+    score: 86.87
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-7_xhigh
+  - benchmark: hle
+    score: 32.98
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-7_unknown
+  - benchmark: otis_mock_aime
+    score: 97.8
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-7_xhigh
+  - benchmark: simpleqa_verified
+    score: 50.6
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-7_xhigh
+  - benchmark: swe_bench_verified
+    score: 83.47
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-7_max
+  - benchmark: terminal_bench
+    score: 90.2
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-7_unknown; Epoch relays this figure from https://www.tbench.ai/leaderboard/terminal-bench/2.0
+  notes: The 675/804 overhead is unique among shipping Claude models and makes this the easiest generation
+    to confirm from a single tool-bearing request. First generation with the newer tokenizer.
+- id: claude-opus-4-6
+  vendor: anthropic
+  family: anthropic
+  display_name: Claude Opus 4.6
+  aliases:
+  - anthropic/claude-opus-4.6
+  - anthropic/claude-4.6-opus-20260205
+  released: '2026-02-05'
+  reasoning: true
+  default_effort: high
+  effort_ladder:
+  - max
+  - high
+  - medium
+  - low
+  context_window: 1000000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 5.0
+    output_per_mtok: 25.0
+    cache_read_per_mtok: 0.5
+    cache_write_per_mtok: 6.25
+    source: https://openrouter.ai/api/v1/models
+  token_accounting:
+    tool_overhead_auto: 496
+    tool_overhead_forced: 588
+    bash_tool_overhead: 244
+    source: Anthropic pricing page, tool-use system-prompt token table; Anthropic's pricing table
+      gives this model group as 496-497 tokens (auto/none) and 588-589 (any/tool) without saying which
+      member takes which value, so allow +/-1.
+    as_of: '2026-07-26'
+  scores:
+  - benchmark: arc_agi_1
+    score: 94.0
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-6_120K; 120K thinking budget, effort not stated; Epoch
+      relays this figure from ARC Prize Leaderboard
+  - benchmark: arc_agi_2
+    score: 69.17
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-6_120K; 120K thinking budget, effort not stated
+  - benchmark: frontiermath_t123
+    score: 65.96
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-6_max
+  - benchmark: frontiermath_t4
+    score: 26.83
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-6_max
+  - benchmark: gpqa_diamond
+    score: 87.37
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-6_32K; 32K thinking budget, effort not stated
+  - benchmark: hle
+    score: 31.13
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-6_max
+  - benchmark: otis_mock_aime
+    score: 94.44
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-6_64K; 64K thinking budget, effort not stated
+  - benchmark: simpleqa_verified
+    score: 46.49
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-6_max
+  - benchmark: swe_bench_verified
+    score: 78.72
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-6
+  - benchmark: terminal_bench
+    score: 79.8
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-opus-4-6_unknown; Epoch relays this figure from https://www.tbench.ai/leaderboard/terminal-bench/2.0
+  notes: First generation whose dateless id is a pinned snapshot rather than an evergreen alias. Shares
+    its 496-497/588-589 overhead with Sonnet 4.6, Haiku 4.5 and Opus 4.5, so that signal identifies
+    the generation, not the model.
+- id: claude-sonnet-4-6
+  vendor: anthropic
+  family: anthropic
+  display_name: Claude Sonnet 4.6
+  aliases:
+  - anthropic/claude-sonnet-4.6
+  - anthropic/claude-4.6-sonnet-20260217
+  released: '2026-02-17'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - max
+  - high
+  - medium
+  - low
+  context_window: 1000000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 3.0
+    output_per_mtok: 15.0
+    cache_read_per_mtok: 0.3
+    cache_write_per_mtok: 3.75
+    source: https://openrouter.ai/api/v1/models
+  token_accounting:
+    tool_overhead_auto: 497
+    tool_overhead_forced: 589
+    bash_tool_overhead: 244
+    source: Anthropic pricing page, tool-use system-prompt token table; Anthropic's pricing table
+      gives this model group as 496-497 tokens (auto/none) and 588-589 (any/tool) without saying which
+      member takes which value, so allow +/-1.
+    as_of: '2026-07-26'
+  scores:
+  - benchmark: aa_agentic_index
+    score: 40.8
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 63.0
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 47.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 86.5
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-4-6_high
+  - benchmark: arc_agi_2
+    score: 60.42
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-4-6_high
+  - benchmark: critpt
+    score: 3.14
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-4-6_max
+  - benchmark: gpqa_diamond
+    score: 83.16
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-4-6_32K; 32K thinking budget, effort not stated
+  - benchmark: otis_mock_aime
+    score: 85.78
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-4-6_32K; 32K thinking budget, effort not stated
+  - benchmark: simpleqa_verified
+    score: 29.0
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-4-6_32K; 32K thinking budget, effort not stated
+  - benchmark: swe_bench_verified
+    score: 75.21
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-4-6
+  - benchmark: terminal_bench
+    score: 53.4
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version claude-sonnet-4-6_unknown; Epoch relays this figure from https://www.tbench.ai/leaderboard/terminal-bench/2.0
+  notes: Overhead is quoted as a 496-497 range across this generation; the upper value is recorded
+    here and either should be accepted.
+- id: gpt-5.6-sol
+  vendor: openai
+  family: openai
+  display_name: GPT-5.6 Sol
+  aliases:
+  - openai/gpt-5.6-sol
+  - openai/gpt-5.6-sol-20260709
+  - gpt-5.6-sol-20260709
+  released: '2026-07-09'
+  training_cutoff: '2026-02-16'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - medium
+  - low
+  - none
+  context_window: 1050000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 5.0
+    output_per_mtok: 30.0
+    cache_read_per_mtok: 0.5
+    cache_write_per_mtok: 6.25
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 54.0
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 77.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 58.9
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 97.5
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-sol_xhigh; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 92.5
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-sol_max
+  - benchmark: arc_agi_3
+    score: 7.78
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: browsecomp
+    score: 90.4
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: critpt
+    score: 32.3
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-sol_max
+  - benchmark: frontiermath_t123
+    score: 89.12
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-sol_max
+  - benchmark: gdpval_aa_v2
+    score: 1747.8
+    unit: elo
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: gpqa_diamond
+    score: 94.6
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: gpqa_diamond
+    score: 91.33
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-sol_max
+  - benchmark: mmmu_pro
+    score: 83.0
+    tools: false
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: mmmu_pro
+    score: 84.6
+    tools: true
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: osworld_2
+    score: 62.6
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: otis_mock_aime
+    score: 100.0
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-sol_max
+  - benchmark: simpleqa_verified
+    score: 71.6
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-sol_max
+  - benchmark: swe_bench_pro
+    score: 64.6
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: terminal_bench_2_1
+    score: 88.8
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  notes: OpenAI's own GPQA-D for this model exceeds Epoch's standardised run by roughly two to three
+    points, which is what an unstated reasoning effort buys. Because ModelRecord.score_for ranks primary
+    above independent, an unconditioned lab number wins whenever the caller does not pin an effort
+    -- pin one. OpenAI also publishes FrontierMath figures for this model whose version and split
+    are not stated and which disagree sharply with Epoch's v2-private runs; they are omitted rather
+    than recorded as if comparable.
+- id: gpt-5.6-terra
+  vendor: openai
+  family: openai
+  display_name: GPT-5.6 Terra
+  aliases:
+  - openai/gpt-5.6-terra
+  - openai/gpt-5.6-terra-20260709
+  - gpt-5.6-terra-20260709
+  released: '2026-07-09'
+  training_cutoff: '2026-02-16'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - medium
+  - low
+  - none
+  context_window: 1050000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 2.5
+    output_per_mtok: 15.0
+    cache_read_per_mtok: 0.25
+    cache_write_per_mtok: 3.125
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 47.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 76.7
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 55.0
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 96.5
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-terra_max; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 83.9
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-terra_max
+  - benchmark: arc_agi_3
+    score: 0.8
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: browsecomp
+    score: 87.5
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: critpt
+    score: 30.0
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-terra_max
+  - benchmark: frontiermath_t123
+    score: 85.96
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-terra_max
+  - benchmark: frontiermath_t4
+    score: 70.73
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-terra_max
+  - benchmark: gdpval_aa_v2
+    score: 1593.0
+    unit: elo
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: gpqa_diamond
+    score: 92.9
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: gpqa_diamond
+    score: 91.08
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-terra_max
+  - benchmark: mmmu_pro
+    score: 80.7
+    tools: false
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: mmmu_pro
+    score: 82.0
+    tools: true
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: osworld_2
+    score: 50.2
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: otis_mock_aime
+    score: 99.72
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-terra_max
+  - benchmark: simpleqa_verified
+    score: 43.1
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-terra_max
+  - benchmark: swe_bench_pro
+    score: 63.4
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: terminal_bench_2_1
+    score: 87.4
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  notes: OpenAI's own GPQA-D for this model exceeds Epoch's standardised run by roughly two to three
+    points, which is what an unstated reasoning effort buys. Because ModelRecord.score_for ranks primary
+    above independent, an unconditioned lab number wins whenever the caller does not pin an effort
+    -- pin one. OpenAI also publishes FrontierMath figures for this model whose version and split
+    are not stated and which disagree sharply with Epoch's v2-private runs; they are omitted rather
+    than recorded as if comparable.
+- id: gpt-5.6-luna
+  vendor: openai
+  family: openai
+  display_name: GPT-5.6 Luna
+  aliases:
+  - openai/gpt-5.6-luna
+  - openai/gpt-5.6-luna-20260709
+  - gpt-5.6-luna-20260709
+  released: '2026-07-09'
+  training_cutoff: '2026-02-16'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - medium
+  - low
+  - none
+  context_window: 1050000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 1.0
+    output_per_mtok: 6.0
+    cache_read_per_mtok: 0.1
+    cache_write_per_mtok: 1.25
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 45.6
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 71.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 51.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 88.0
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-luna_max; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 59.54
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-luna_max
+  - benchmark: arc_agi_3
+    score: 0.18
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: browsecomp
+    score: 83.3
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: critpt
+    score: 20.6
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-luna_max
+  - benchmark: frontiermath_t123
+    score: 82.11
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-luna_max
+  - benchmark: frontiermath_t4
+    score: 60.98
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-luna_max
+  - benchmark: gdpval_aa_v2
+    score: 1591.8
+    unit: elo
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: gpqa_diamond
+    score: 92.3
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: gpqa_diamond
+    score: 88.8
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-luna_max
+  - benchmark: mmmu_pro
+    score: 78.4
+    tools: false
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: mmmu_pro
+    score: 79.5
+    tools: true
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: osworld_2
+    score: 45.6
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: otis_mock_aime
+    score: 98.33
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-luna_max
+  - benchmark: simpleqa_verified
+    score: 41.7
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.6-luna_max
+  - benchmark: swe_bench_pro
+    score: 62.7
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  - benchmark: terminal_bench_2_1
+    score: 84.7
+    source: OpenAI, GPT-5.6 launch page
+    source_url: https://openai.com/index/gpt-5-6/
+    as_of: '2026-07-09'
+    confidence: primary
+    notes: OpenAI's GPT-5.6 launch page states no reasoning effort for any figure, a regression from
+      the earlier 'evals run at xhigh except where specified' footnote. Effort is left null here rather
+      than guessed; pin an effort and prefer the Epoch entries when comparing.
+  notes: OpenAI's own GPQA-D for this model exceeds Epoch's standardised run by roughly two to three
+    points, which is what an unstated reasoning effort buys. Because ModelRecord.score_for ranks primary
+    above independent, an unconditioned lab number wins whenever the caller does not pin an effort
+    -- pin one. OpenAI also publishes FrontierMath figures for this model whose version and split
+    are not stated and which disagree sharply with Epoch's v2-private runs; they are omitted rather
+    than recorded as if comparable.
+- id: gpt-5.6-sol-pro
+  vendor: openai
+  family: openai
+  display_name: GPT-5.6 Sol Pro
+  aliases:
+  - openai/gpt-5.6-sol-pro
+  - openai/gpt-5.6-sol-pro-20260709
+  - gpt-5.6-sol-pro-20260709
+  released: '2026-07-09'
+  training_cutoff: '2026-02-16'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - medium
+  - low
+  - none
+  context_window: 1050000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 5.0
+    output_per_mtok: 30.0
+    cache_read_per_mtok: 0.5
+    cache_write_per_mtok: 6.25
+    source: https://openrouter.ai/api/v1/models
+  notes: Epoch AI carries rows with model_version gpt-5.6-sol_promax and gpt-5.6-sol_prounknown filed
+    under the display name 'GPT-5.6 Sol'. Whether those are Sol Pro or a mislabelled Sol run cannot
+    be settled from the data -- the FrontierMath Tier-4 value on the promax row (82.93) is within
+    a tenth of OpenAI's published figure for plain Sol. They are therefore mapped to nothing and reported
+    as unmatched by the refresh command, which is the safe failure mode. OpenAI confirms no terra-pro
+    or luna-pro, although OpenRouter lists both.
+- id: gpt-5.5
+  vendor: openai
+  family: openai
+  display_name: GPT-5.5
+  aliases:
+  - openai/gpt-5.5
+  - openai/gpt-5.5-20260423
+  - gpt-5.5-20260423
+  released: '2026-04-23'
+  training_cutoff: '2025-12-01'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - xhigh
+  - high
+  - medium
+  - low
+  - none
+  context_window: 1050000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 5.0
+    output_per_mtok: 30.0
+    cache_read_per_mtok: 0.5
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 44.9
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 74.9
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 54.8
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 95.0
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5_xhigh; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 85.0
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5_xhigh
+  - benchmark: critpt
+    score: 27.14
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5_xhigh
+  - benchmark: frontiermath_t123
+    score: 85.26
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5_xhigh
+  - benchmark: frontiermath_t4
+    score: 72.5
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5_xhigh
+  - benchmark: gpqa_diamond
+    score: 92.0
+    effort: low
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5_low
+  - benchmark: gpqa_diamond
+    score: 93.6
+    effort: xhigh
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: hle
+    score: 41.4
+    effort: xhigh
+    tools: false
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: hle
+    score: 52.2
+    effort: xhigh
+    tools: true
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: mmmu_pro
+    score: 81.2
+    effort: xhigh
+    tools: false
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: mmmu_pro
+    score: 83.2
+    effort: xhigh
+    tools: true
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: osworld_verified
+    score: 78.7
+    effort: xhigh
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: otis_mock_aime
+    score: 100.0
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5-pre-release_xhigh
+  - benchmark: simpleqa_verified
+    score: 63.1
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5-pre-release_xhigh
+  - benchmark: swe_bench_verified
+    score: 80.58
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5-pre-release_xhigh
+  - benchmark: tau2_bench_telecom
+    score: 98.0
+    effort: xhigh
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: terminal_bench
+    score: 84.7
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5_unknown; Epoch relays this figure from https://www.tbench.ai/leaderboard/terminal-bench/2.0
+  - benchmark: terminal_bench_2_0
+    score: 82.7
+    effort: xhigh
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  notes: Epoch's GPQA-D row for this model was run at low effort (92.00) while OpenAI's own figure
+    is at xhigh (93.6); both are recorded, and comparing a provider's output against either without
+    pinning the same effort is invalid. Several Epoch rows come from a pre-release build (model_version
+    gpt-5.5-pre-release), noted per score. OpenAI's FrontierMath numbers for GPT-5.5 (T1-3 51.7, T4
+    35.4) differ from Epoch's v2-private runs by more than 30 points, so the two measure different
+    sets and the lab pair is not recorded here.
+- id: gpt-5.5-pro
+  vendor: openai
+  family: openai
+  display_name: GPT-5.5 Pro
+  aliases:
+  - openai/gpt-5.5-pro
+  - openai/gpt-5.5-pro-20260423
+  - gpt-5.5-pro-20260423
+  released: '2026-04-23'
+  training_cutoff: '2025-12-01'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - xhigh
+  - high
+  - medium
+  context_window: 1050000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 30.0
+    output_per_mtok: 180.0
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: arc_agi_1
+    score: 96.5
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5-pro_high; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 84.58
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5-pro_high
+  - benchmark: arc_agi_2
+    score: 83.3
+    effort: xhigh
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: critpt
+    score: 30.57
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5-pro_xhigh
+  - benchmark: frontiermath_t123
+    score: 87.72
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5-pro_xhigh
+  - benchmark: frontiermath_t4
+    score: 78.05
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5-pro_xhigh
+  - benchmark: gpqa_diamond
+    score: 91.9
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5-pro-pre-release_xhigh
+  - benchmark: gpqa_diamond
+    score: 94.4
+    effort: xhigh
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: hle
+    score: 43.1
+    effort: xhigh
+    tools: false
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: hle
+    score: 57.2
+    effort: xhigh
+    tools: true
+    source: OpenAI, GPT-5.5 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: otis_mock_aime
+    score: 100.0
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5-pro-pre-release_xhigh
+  - benchmark: simpleqa_verified
+    score: 64.5
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.5-pro-pre-release_xhigh
+  notes: Reasoning is mandatory on this SKU and the ladder stops at medium. Training cutoff is published
+    only to month precision (December 2025).
+- id: gpt-5.4
+  vendor: openai
+  family: openai
+  display_name: GPT-5.4
+  aliases:
+  - openai/gpt-5.4
+  - openai/gpt-5.4-20260305
+  - gpt-5.4-2026-03-05
+  released: '2026-03-05'
+  training_cutoff: '2025-08-31'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - xhigh
+  - high
+  - medium
+  - low
+  - none
+  context_window: 1050000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 2.5
+    output_per_mtok: 15.0
+    cache_read_per_mtok: 0.25
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 41.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 71.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 51.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 93.67
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-2026-03-05_xhigh
+  - benchmark: arc_agi_2
+    score: 73.95
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-2026-03-05_xhigh
+  - benchmark: critpt
+    score: 23.43
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-2026-03-05_xhigh
+  - benchmark: frontiermath_t123
+    score: 78.6
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-2026-03-05_xhigh
+  - benchmark: frontiermath_t4
+    score: 49.0
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-2026-03-05_xhigh
+  - benchmark: gpqa_diamond
+    score: 91.07
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-2026-03-05_xhigh
+  - benchmark: gpqa_diamond
+    score: 93.0
+    effort: xhigh
+    source: OpenAI, GPT-5.4 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: hle
+    score: 33.03
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-2026-03-05_xhigh
+  - benchmark: hle
+    score: 39.8
+    effort: xhigh
+    tools: false
+    source: OpenAI, GPT-5.4 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: hle
+    score: 52.1
+    effort: xhigh
+    tools: true
+    source: OpenAI, GPT-5.4 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: otis_mock_aime
+    score: 95.3
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-2026-03-05_xhigh
+  - benchmark: simpleqa_verified
+    score: 44.83
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-2026-03-05_xhigh
+  - benchmark: swe_bench_pro
+    score: 57.7
+    effort: xhigh
+    source: OpenAI, GPT-5.4 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: swe_bench_verified
+    score: 76.86
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-2026-03-05_high
+  - benchmark: tau2_bench_telecom
+    score: 98.9
+    effort: xhigh
+    source: OpenAI, GPT-5.4 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: terminal_bench
+    score: 81.8
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-2026-03-05_unknown; Epoch relays this figure from https://www.tbench.ai/leaderboard/terminal-bench/2.0
+  - benchmark: terminal_bench_2_0
+    score: 75.1
+    effort: xhigh
+    source: OpenAI, GPT-5.4 launch material
+    as_of: '2026-07-26'
+    confidence: primary
+  notes: OpenAI and Epoch disagree on GPQA-D at the same stated effort (93.0 against 91.07 at xhigh),
+    a 1.9-point harness gap that is larger than the gap between several adjacent models on this benchmark.
+    It is a good illustration of why GPQA-D must never be used alone.
+- id: gpt-5.4-mini
+  vendor: openai
+  family: openai
+  display_name: GPT-5.4 Mini
+  aliases:
+  - openai/gpt-5.4-mini
+  - openai/gpt-5.4-mini-20260317
+  - gpt-5.4-mini-2026-03-17
+  released: '2026-03-17'
+  training_cutoff: '2025-08-31'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - xhigh
+  - high
+  - medium
+  - low
+  - none
+  context_window: 400000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 0.75
+    output_per_mtok: 4.5
+    cache_read_per_mtok: 0.075
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 30.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 56.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 40.0
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 63.67
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-mini-2026-03-17_xhigh; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 18.9
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-mini-2026-03-17_xhigh
+  - benchmark: critpt
+    score: 10.0
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-mini-2026-03-17_xhigh
+  - benchmark: frontiermath_t123
+    score: 51.23
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-mini-2026-03-17_xhigh
+  - benchmark: frontiermath_t4
+    score: 9.76
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-mini-2026-03-17_xhigh
+  - benchmark: gpqa_diamond
+    score: 78.11
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-mini-2026-03-17_high
+  - benchmark: gpqa_diamond
+    score: 88.0
+    effort: xhigh
+    source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
+    confidence: secondary
+    notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
+      is an inference, so this is filed as secondary.
+  - benchmark: hle
+    score: 28.2
+    effort: xhigh
+    tools: false
+    source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
+    confidence: secondary
+    notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
+      is an inference, so this is filed as secondary.
+  - benchmark: otis_mock_aime
+    score: 87.21
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-mini-2026-03-17_high
+  - benchmark: simpleqa_verified
+    score: 28.6
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-mini-2026-03-17_high
+  - benchmark: swe_bench_pro
+    score: 54.4
+    effort: xhigh
+    source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
+    confidence: secondary
+    notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
+      is an inference, so this is filed as secondary.
+  - benchmark: tau2_bench_telecom
+    score: 93.4
+    effort: xhigh
+    source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
+    confidence: secondary
+    notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
+      is an inference, so this is filed as secondary.
+  - benchmark: terminal_bench_2_0
+    score: 60.0
+    effort: xhigh
+    source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
+    confidence: secondary
+    notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
+      is an inference, so this is filed as secondary.
+  notes: Epoch measured the headline benchmarks for this model at high effort and the ARC/FrontierMath
+    rows at xhigh; the per-score notes record which.
+- id: gpt-5.4-nano
+  vendor: openai
+  family: openai
+  display_name: GPT-5.4 Nano
+  aliases:
+  - openai/gpt-5.4-nano
+  - openai/gpt-5.4-nano-20260317
+  - gpt-5.4-nano-2026-03-17
+  released: '2026-03-17'
+  training_cutoff: '2025-08-31'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - xhigh
+  - high
+  - medium
+  - low
+  - none
+  context_window: 400000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 0.2
+    output_per_mtok: 1.25
+    cache_read_per_mtok: 0.02
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 27.5
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 56.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 38.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 51.5
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-nano-2026-03-17_xhigh; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 5.69
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-nano-2026-03-17_xhigh
+  - benchmark: critpt
+    score: 9.25
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-nano-2026-03-17_xhigh
+  - benchmark: frontiermath_t123
+    score: 44.91
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-nano-2026-03-17_high
+  - benchmark: frontiermath_t4
+    score: 12.2
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-nano-2026-03-17_high
+  - benchmark: gpqa_diamond
+    score: 71.29
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-nano-2026-03-17_high
+  - benchmark: gpqa_diamond
+    score: 82.8
+    effort: xhigh
+    source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
+    confidence: secondary
+    notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
+      is an inference, so this is filed as secondary.
+  - benchmark: hle
+    score: 24.3
+    effort: xhigh
+    tools: false
+    source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
+    confidence: secondary
+    notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
+      is an inference, so this is filed as secondary.
+  - benchmark: otis_mock_aime
+    score: 87.77
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-nano-2026-03-17_high
+  - benchmark: simpleqa_verified
+    score: 12.0
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-nano-2026-03-17_high
+  - benchmark: swe_bench_pro
+    score: 52.4
+    effort: xhigh
+    source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
+    confidence: secondary
+    notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
+      is an inference, so this is filed as secondary.
+  - benchmark: tau2_bench_telecom
+    score: 92.5
+    effort: xhigh
+    source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
+    confidence: secondary
+    notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
+      is an inference, so this is filed as secondary.
+  - benchmark: terminal_bench_2_0
+    score: 46.3
+    effort: xhigh
+    source: OpenAI, GPT-5.4 comparison table
+    as_of: '2026-07-26'
+    confidence: secondary
+    notes: Read positionally from a compressed comparison table; the benchmark-to-value assignment
+      is an inference, so this is filed as secondary.
+  notes: Epoch measured the headline benchmarks for this model at high effort and the ARC/FrontierMath
+    rows at xhigh; the per-score notes record which.
+- id: gpt-5.4-pro
+  vendor: openai
+  family: openai
+  display_name: GPT-5.4 Pro
+  aliases:
+  - openai/gpt-5.4-pro
+  - openai/gpt-5.4-pro-20260305
+  - gpt-5.4-pro-2026-03-05
+  released: '2026-03-05'
+  training_cutoff: '2025-08-31'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - xhigh
+  - high
+  - medium
+  context_window: 1050000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 30.0
+    output_per_mtok: 180.0
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: arc_agi_1
+    score: 94.5
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-pro-2026-03-05_xhigh
+  - benchmark: arc_agi_2
+    score: 83.33
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-pro-2026-03-05_xhigh
+  - benchmark: critpt
+    score: 30.0
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-pro-2026-03-05_xhigh
+  - benchmark: frontiermath_t123
+    score: 82.46
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-pro-2026-03-05_xhigh
+  - benchmark: frontiermath_t4
+    score: 58.54
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-pro-2026-03-05_xhigh
+  - benchmark: gpqa_diamond
+    score: 92.8
+    effort: xhigh
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-pro-2026-03-05_xhigh
+  - benchmark: hle
+    score: 41.51
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-pro-2026-03-05_unknown
+  - benchmark: simpleqa_verified
+    score: 47.8
+    effort: xhigh
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.4-pro-2026-03-05_xhigh
+  notes: Reasoning is mandatory on this SKU; the ladder stops at medium.
+- id: gpt-5.3-codex
+  vendor: openai
+  family: openai
+  display_name: GPT-5.3 Codex
+  aliases:
+  - openai/gpt-5.3-codex
+  - openai/gpt-5.3-codex-20260224
+  - gpt-5.3-codex-20260224
+  released: '2026-02-24'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - xhigh
+  - high
+  - medium
+  - low
+  - none
+  context_window: 400000
+  max_output_tokens: 128000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 1.75
+    output_per_mtok: 14.0
+    cache_read_per_mtok: 0.175
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: swe_bench_verified
+    score: 74.79
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.3-codex_high
+  - benchmark: terminal_bench
+    score: 78.4
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gpt-5.3-codex; Epoch relays this figure from https://www.tbench.ai/leaderboard/terminal-bench/2.0
+  notes: Agentic-coding SKU. OpenAI publishes no knowledge cutoff for it, so none is recorded.
+- id: gpt-5.3-chat
+  vendor: openai
+  family: openai
+  display_name: GPT-5.3 Chat
+  aliases:
+  - openai/gpt-5.3-chat
+  - openai/gpt-5.3-chat-20260303
+  - gpt-5.3-chat-20260303
+  released: '2026-03-03'
+  reasoning: false
+  context_window: 128000
+  max_output_tokens: 16384
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 1.75
+    output_per_mtok: 14.0
+    cache_read_per_mtok: 0.175
+    source: https://openrouter.ai/api/v1/models
+  notes: 'Not a reasoning model: it advertises no effort ladder, so a provider that accepts reasoning_effort
+    on this id is running something else. No benchmark scores are published for it.'
+- id: gemini-3.6-flash
+  vendor: google
+  family: gemini
+  display_name: Gemini 3.6 Flash
+  aliases:
+  - google/gemini-3.6-flash
+  - google/gemini-3.6-flash-20260721
+  released: '2026-07-21'
+  reasoning: true
+  effort_ladder: &id001
+  - high
+  - medium
+  - low
+  - minimal
+  context_window: 1048576
+  max_output_tokens: 65536
+  modalities:
+  - text
+  - image
+  - audio
+  - video
+  - file
+  pricing:
+    input_per_mtok: 1.5
+    output_per_mtok: 7.5
+    cache_read_per_mtok: 0.15
+    cache_write_per_mtok: 0.083333
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 38.7
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 69.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 50.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: swe_bench_pro_public
+    score: 58.7
+    harness: Antigravity (internal)
+    source: Google, Gemini 3.6 Flash model card
+    as_of: '2026-07-21'
+    confidence: primary
+  - benchmark: terminal_bench_2_1
+    score: 78.0
+    source: Google, Gemini 3.6 Flash model card
+    as_of: '2026-07-21'
+    confidence: primary
+  notes: The model card carries no reasoning or academic benchmark at all -- no GPQA-D, no HLE, no
+    ARC-AGI -- and Epoch has not published a run yet, so the only reference points are two agentic
+    scores measured on Google's own harness. Benchmark-based verification of this id is therefore
+    weak; rely on token accounting, API surface and pricing instead. Google publishes no knowledge
+    cutoff on its models overview, so none is recorded. OpenRouter reports one for some Gemini models;
+    that is a third-party claim and is not treated as a vendor statement.
+- id: gemini-3.5-flash
+  vendor: google
+  family: gemini
+  display_name: Gemini 3.5 Flash
+  aliases:
+  - google/gemini-3.5-flash
+  - google/gemini-3.5-flash-20260519
+  released: '2026-05-19'
+  reasoning: true
+  effort_ladder: *id001
+  context_window: 1048576
+  max_output_tokens: 65536
+  modalities:
+  - text
+  - image
+  - audio
+  - video
+  - file
+  pricing:
+    input_per_mtok: 1.5
+    output_per_mtok: 9.0
+    cache_read_per_mtok: 0.15
+    cache_write_per_mtok: 0.083333
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 37.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 70.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 50.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 92.5
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.5-flash_high; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 72.08
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.5-flash_high
+  - benchmark: critpt
+    score: 13.14
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.5-flash_high
+  - benchmark: frontiermath_t123
+    score: 62.81
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.5-flash_high
+  - benchmark: frontiermath_t4
+    score: 26.83
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.5-flash_high
+  - benchmark: gpqa_diamond
+    score: 90.4
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.5-flash_high
+  - benchmark: hle
+    score: 40.2
+    source: Google, Gemini 3.5 Flash model card
+    as_of: '2026-05-19'
+    confidence: primary
+  - benchmark: otis_mock_aime
+    score: 95.55
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.5-flash_high
+  - benchmark: simpleqa_verified
+    score: 68.4
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.5-flash_high
+  - benchmark: swe_bench_pro_public
+    score: 53.9
+    source: Google, Gemini 3.5 Flash model card
+    as_of: '2026-05-19'
+    confidence: primary
+  - benchmark: swe_bench_verified
+    score: 79.34
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.5-flash_high
+  - benchmark: terminal_bench_2_1
+    score: 76.2
+    source: Google, Gemini 3.5 Flash model card
+    as_of: '2026-05-19'
+    confidence: primary
+  notes: GPQA-D and SWE-bench Verified are absent from Google's card for this model; both values below
+    come from Epoch's independent runs at high effort. Google publishes no knowledge cutoff on its
+    models overview, so none is recorded. OpenRouter reports one for some Gemini models; that is a
+    third-party claim and is not treated as a vendor statement.
+- id: gemini-3.5-flash-lite
+  vendor: google
+  family: gemini
+  display_name: Gemini 3.5 Flash-Lite
+  aliases:
+  - google/gemini-3.5-flash-lite
+  - google/gemini-3.5-flash-lite-20260721
+  released: '2026-07-21'
+  reasoning: true
+  effort_ladder: *id001
+  context_window: 1048576
+  max_output_tokens: 65536
+  modalities:
+  - text
+  - image
+  - audio
+  - video
+  - file
+  pricing:
+    input_per_mtok: 0.3
+    output_per_mtok: 2.5
+    cache_read_per_mtok: 0.03
+    cache_write_per_mtok: 0.083333
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 26.8
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 49.3
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 36.5
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  notes: No published benchmark scores located. Google publishes no knowledge cutoff on its models
+    overview, so none is recorded. OpenRouter reports one for some Gemini models; that is a third-party
+    claim and is not treated as a vendor statement.
+- id: gemini-3.1-pro-preview
+  vendor: google
+  family: gemini
+  display_name: Gemini 3.1 Pro
+  aliases:
+  - google/gemini-3.1-pro-preview
+  - google/gemini-3.1-pro-preview-20260219
+  - gemini-3.1-pro
+  released: '2026-02-19'
+  reasoning: true
+  effort_ladder:
+  - high
+  - medium
+  - low
+  context_window: 1048576
+  max_output_tokens: 65536
+  modalities:
+  - text
+  - image
+  - audio
+  - video
+  - file
+  pricing:
+    input_per_mtok: 2.0
+    output_per_mtok: 12.0
+    cache_read_per_mtok: 0.2
+    cache_write_per_mtok: 0.375
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 21.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 68.8
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 46.5
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: arc_agi_1
+    score: 98.0
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-pro-preview; Epoch relays this figure from ARC Prize Leaderboard
+  - benchmark: arc_agi_2
+    score: 77.1
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-pro-preview
+  - benchmark: critpt
+    score: 17.71
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-pro-preview
+  - benchmark: frontiermath_t123
+    score: 59.65
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-pro-preview
+  - benchmark: frontiermath_t4
+    score: 26.83
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-pro-preview
+  - benchmark: gpqa_diamond
+    score: 92.13
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-pro-preview
+  - benchmark: gpqa_diamond
+    score: 94.3
+    effort: high
+    source: Google, Gemini 3.1 Pro model card
+    as_of: '2026-02-19'
+    confidence: primary
+  - benchmark: hle
+    score: 43.74
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-pro-preview
+  - benchmark: hle
+    score: 44.4
+    effort: high
+    tools: false
+    source: Google, Gemini 3.1 Pro model card
+    as_of: '2026-02-19'
+    confidence: primary
+  - benchmark: hle
+    score: 51.4
+    effort: high
+    tools: true
+    source: Google, Gemini 3.1 Pro model card
+    as_of: '2026-02-19'
+    confidence: primary
+  - benchmark: livecodebench_pro
+    score: 2887
+    unit: elo
+    effort: high
+    source: Google, Gemini 3.1 Pro model card
+    as_of: '2026-02-19'
+    confidence: primary
+  - benchmark: otis_mock_aime
+    score: 95.6
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-pro-preview
+  - benchmark: simpleqa_verified
+    score: 77.3
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-pro-preview
+  - benchmark: swe_bench_verified
+    score: 75.62
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-pro-preview-customtools
+  - benchmark: swe_bench_verified
+    score: 80.6
+    effort: high
+    source: Google, Gemini 3.1 Pro model card
+    as_of: '2026-02-19'
+    confidence: primary
+    notes: Average of 10 runs.
+  - benchmark: terminal_bench
+    score: 80.2
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-pro-preview; Epoch relays this figure from https://www.tbench.ai/leaderboard/terminal-bench/2.0
+  - benchmark: terminal_bench_2_0
+    score: 68.5
+    effort: high
+    source: Google, Gemini 3.1 Pro model card
+    as_of: '2026-02-19'
+    confidence: primary
+  notes: Google states 'Thinking High' for these figures, which is why they carry an effort label
+    while the 3.5/3.6 Flash cards do not. Epoch's SWE-bench Verified row for this model used a custom-tools
+    build (75.62) and is not comparable with Google's 80.6. Google publishes no knowledge cutoff on
+    its models overview, so none is recorded. OpenRouter reports one for some Gemini models; that
+    is a third-party claim and is not treated as a vendor statement.
+- id: gemini-3.1-flash-lite
+  vendor: google
+  family: gemini
+  display_name: Gemini 3.1 Flash-Lite
+  aliases:
+  - google/gemini-3.1-flash-lite
+  - google/gemini-3.1-flash-lite-20260507
+  released: '2026-03-03'
+  reasoning: true
+  effort_ladder: *id001
+  context_window: 1048576
+  max_output_tokens: 65536
+  modalities:
+  - text
+  - image
+  - audio
+  - video
+  - file
+  pricing:
+    input_per_mtok: 0.25
+    output_per_mtok: 1.5
+    cache_read_per_mtok: 0.025
+    cache_write_per_mtok: 0.083333
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: critpt
+    score: 1.14
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-flash-lite
+  - benchmark: hle
+    score: 4.03
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-3.1-flash-lite
+  notes: 'Only two Epoch rows exist, both on benchmarks where this model scores near the floor (CritPt
+    1.14, HLE 4.03). Floor scores discriminate badly: almost any weak substitute reproduces them.
+    Google publishes no knowledge cutoff on its models overview, so none is recorded. OpenRouter reports
+    one for some Gemini models; that is a third-party claim and is not treated as a vendor statement.'
+- id: gemini-2.5-pro
+  vendor: google
+  family: gemini
+  display_name: Gemini 2.5 Pro
+  aliases:
+  - google/gemini-2.5-pro
+  - gemini-2.5-pro-preview-06-05
+  released: '2025-06-05'
+  reasoning: true
+  context_window: 1048576
+  max_output_tokens: 65536
+  modalities:
+  - text
+  - image
+  - audio
+  - video
+  - file
+  pricing:
+    input_per_mtok: 1.25
+    output_per_mtok: 10.0
+    cache_read_per_mtok: 0.125
+    cache_write_per_mtok: 0.375
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 7.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 33.3
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 25.8
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aider_polyglot
+    score: 83.1
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro-preview-06-05; Epoch relays this figure from Aider LLM
+      Leaderboards
+  - benchmark: arc_agi_1
+    score: 41.0
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro_16K; 16K thinking budget, effort not stated; Epoch relays
+      this figure from ARC Prize Leaderboard
+  - benchmark: arc_agi_2
+    score: 4.86
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro_32K; 32K thinking budget, effort not stated
+  - benchmark: critpt
+    score: 2.0
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro
+  - benchmark: frontiermath_t123
+    score: 24.56
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro
+  - benchmark: frontiermath_t4
+    score: 0.0
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro
+  - benchmark: gpqa_diamond
+    score: 80.39
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro
+  - benchmark: hle
+    score: 17.69
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro-preview-06-05
+  - benchmark: otis_mock_aime
+    score: 84.71
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro
+  - benchmark: simpleqa_verified
+    score: 56.0
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro
+  - benchmark: swe_bench_verified
+    score: 57.56
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro
+  - benchmark: terminal_bench
+    score: 32.6
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-pro; Epoch relays this figure from Terminal-Bench v2 Leaderboard
+  notes: Reasoning is mandatory and no effort ladder is advertised for this generation. Google publishes
+    no knowledge cutoff on its models overview, so none is recorded. OpenRouter reports one for some
+    Gemini models; that is a third-party claim and is not treated as a vendor statement.
+- id: gemini-2.5-flash
+  vendor: google
+  family: gemini
+  display_name: Gemini 2.5 Flash
+  aliases:
+  - google/gemini-2.5-flash
+  released: '2025-06-17'
+  reasoning: true
+  context_window: 1048576
+  max_output_tokens: 65535
+  modalities:
+  - text
+  - image
+  - audio
+  - video
+  - file
+  pricing:
+    input_per_mtok: 0.3
+    output_per_mtok: 2.5
+    cache_read_per_mtok: 0.03
+    cache_write_per_mtok: 0.083333
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: critpt
+    score: 1.1
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-flash
+  - benchmark: terminal_bench
+    score: 17.1
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version gemini-2.5-flash
+  notes: Google publishes no knowledge cutoff on its models overview, so none is recorded. OpenRouter
+    reports one for some Gemini models; that is a third-party claim and is not treated as a vendor
+    statement.
+- id: gemini-2.5-flash-lite
+  vendor: google
+  family: gemini
+  display_name: Gemini 2.5 Flash-Lite
+  aliases:
+  - google/gemini-2.5-flash-lite
+  reasoning: true
+  context_window: 1048576
+  max_output_tokens: 65535
+  modalities:
+  - text
+  - image
+  - audio
+  - video
+  - file
+  pricing:
+    input_per_mtok: 0.1
+    output_per_mtok: 0.4
+    cache_read_per_mtok: 0.01
+    cache_write_per_mtok: 0.083333
+    source: https://openrouter.ai/api/v1/models
+  notes: No Epoch run and no published card figures located. Google publishes no knowledge cutoff
+    on its models overview, so none is recorded. OpenRouter reports one for some Gemini models; that
+    is a third-party claim and is not treated as a vendor statement.
+- id: deepseek-v4-pro
+  vendor: deepseek
+  family: openai_compat
+  display_name: DeepSeek V4 Pro
+  aliases:
+  - deepseek/deepseek-v4-pro
+  - deepseek/deepseek-v4-pro-20260423
+  - deepseek-ai/DeepSeek-V4-Pro
+  released: '2026-04-24'
+  reasoning: true
+  open_weights: true
+  default_effort: high
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - none
+  context_window: 1048576
+  max_output_tokens: 384000
+  modalities:
+  - text
+  pricing:
+    input_per_mtok: 0.435
+    output_per_mtok: 0.87
+    cache_read_per_mtok: 0.003625
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 36.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 59.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 44.3
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: bbh
+    score: 87.5
+    effort: none
+    shots: 3
+    source: DeepSeek, V4 base-model table
+    as_of: '2026-04-24'
+    confidence: primary
+    notes: Base model, not the instruct checkpoint.
+  - benchmark: critpt
+    score: 12.86
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version deepseek-v4-pro_max
+  - benchmark: frontiermath_t123
+    score: 45.26
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version deepseek-v4-pro_max
+  - benchmark: frontiermath_t4
+    score: 2.44
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version deepseek-v4-pro_max
+  - benchmark: gpqa_diamond
+    score: 90.1
+    effort: max
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+    notes: temperature 1.0, top_p 1.0.
+  - benchmark: gpqa_diamond
+    score: 86.2
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version deepseek-v4-pro_max
+  - benchmark: gpqa_diamond
+    score: 72.9
+    effort: none
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+    notes: Non-Think mode; temperature 1.0, top_p 1.0.
+  - benchmark: hle
+    score: 37.7
+    effort: max
+    tools: false
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+  - benchmark: hle
+    score: 48.2
+    effort: max
+    tools: true
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+  - benchmark: humaneval
+    score: 76.8
+    effort: none
+    shots: 0
+    source: DeepSeek, V4 base-model table
+    as_of: '2026-04-24'
+    confidence: primary
+    notes: 'Base model, not the instruct checkpoint. Contaminated benchmark: treat as a tokenizer/formatting
+      check, not a capability measure.'
+  - benchmark: livecodebench
+    score: 93.5
+    effort: max
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+  - benchmark: mmlu_pro
+    score: 87.5
+    effort: max
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+  - benchmark: otis_mock_aime
+    score: 96.66
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version deepseek-v4-pro_max
+  - benchmark: simpleqa_verified
+    score: 57.9
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+  - benchmark: simpleqa_verified
+    score: 57.0
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version deepseek-v4-pro_max
+  - benchmark: swe_bench_verified
+    score: 80.6
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+  - benchmark: swe_bench_verified
+    score: 77.64
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version deepseek-v4-pro_max
+  - benchmark: terminal_bench_2_0
+    score: 67.9
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+  notes: 1.6T total / 49B active MoE, MIT licence. DeepSeek names its modes Non-Think / Think-High
+    / Think-Max; they are recorded here as none / high / max so that one effort vocabulary spans the
+    snapshot. The 90.1 GPQA-D at max against 72.9 at none is the clearest published demonstration
+    in this file that an unpinned effort makes a benchmark comparison meaningless. deepseek-chat and
+    deepseek-reasoner were deprecated on 2026-07-24.
+- id: deepseek-v4-flash
+  vendor: deepseek
+  family: openai_compat
+  display_name: DeepSeek V4 Flash
+  aliases:
+  - deepseek/deepseek-v4-flash
+  - deepseek/deepseek-v4-flash-20260423
+  - deepseek-ai/DeepSeek-V4-Flash
+  released: '2026-04-23'
+  reasoning: true
+  open_weights: true
+  default_effort: high
+  effort_ladder:
+  - max
+  - xhigh
+  - high
+  - none
+  context_window: 1048576
+  max_output_tokens: 393216
+  modalities:
+  - text
+  pricing:
+    input_per_mtok: 0.14
+    output_per_mtok: 0.28
+    cache_read_per_mtok: 0.028
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 31.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 56.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 40.3
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: bbh
+    score: 86.9
+    effort: none
+    shots: 3
+    source: DeepSeek, V4 base-model table
+    as_of: '2026-04-24'
+    confidence: primary
+    notes: Base model, not the instruct checkpoint.
+  - benchmark: gpqa_diamond
+    score: 88.1
+    effort: max
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+    notes: temperature 1.0, top_p 1.0.
+  - benchmark: gpqa_diamond
+    score: 71.2
+    effort: none
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+    notes: Non-Think mode; temperature 1.0, top_p 1.0.
+  - benchmark: humaneval
+    score: 69.5
+    effort: none
+    shots: 0
+    source: DeepSeek, V4 base-model table
+    as_of: '2026-04-24'
+    confidence: primary
+    notes: Base model, not the instruct checkpoint.
+  - benchmark: livecodebench
+    score: 91.6
+    effort: max
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+  - benchmark: mmlu_pro
+    score: 86.2
+    effort: max
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+  - benchmark: simpleqa_verified
+    score: 34.1
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+  - benchmark: terminal_bench_2_0
+    score: 56.9
+    source: DeepSeek, V4 model card
+    as_of: '2026-04-24'
+    confidence: primary
+  notes: 284B total / 13B active MoE, MIT licence. No Epoch run. DeepSeek names its modes Non-Think
+    / Think-High / Think-Max; they are recorded here as none / high / max so that one effort vocabulary
+    spans the snapshot.
+- id: glm-5.2
+  vendor: z-ai
+  family: openai_compat
+  display_name: GLM-5.2
+  aliases:
+  - z-ai/glm-5.2
+  - z-ai/glm-5.2-20260616
+  - zai-org/GLM-5.2
+  released: '2026-06-16'
+  reasoning: true
+  open_weights: true
+  default_effort: high
+  effort_ladder:
+  - xhigh
+  - high
+  context_window: 1048576
+  max_output_tokens: 131072
+  modalities:
+  - text
+  pricing:
+    input_per_mtok: 0.6692
+    output_per_mtok: 2.1032
+    cache_read_per_mtok: 0.12428
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 43.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 68.8
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 51.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aime_2026
+    score: 99.2
+    source: Z.ai, GLM-5.2 model card
+    as_of: '2026-06-16'
+    confidence: primary
+    notes: Saturated; 30 items, so a single miss moves the score by 3.3 points.
+  - benchmark: arc_agi_1
+    score: 77.0
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.2_unknown; Epoch relays this figure from https://arcprize.org/leaderboard
+  - benchmark: arc_agi_2
+    score: 22.78
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.2_unknown
+  - benchmark: critpt
+    score: 20.86
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.2_max
+  - benchmark: frontiermath_t123
+    score: 59.21
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.2_max
+  - benchmark: frontiermath_t4
+    score: 29.27
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.2_max
+  - benchmark: gpqa_diamond
+    score: 91.2
+    source: Z.ai, GLM-5.2 model card
+    as_of: '2026-06-16'
+    confidence: primary
+    notes: temperature 1.0, top_p 0.95, max generation 163840 tokens.
+  - benchmark: gpqa_diamond
+    score: 89.14
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.2_max
+  - benchmark: hle
+    score: 40.5
+    tools: false
+    source: Z.ai, GLM-5.2 model card
+    as_of: '2026-06-16'
+    confidence: primary
+  - benchmark: hle
+    score: 54.7
+    tools: true
+    source: Z.ai, GLM-5.2 model card
+    as_of: '2026-06-16'
+    confidence: primary
+  - benchmark: otis_mock_aime
+    score: 86.38
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.2_max
+  - benchmark: simpleqa_verified
+    score: 38.1
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.2_max
+  - benchmark: swe_bench_pro
+    score: 62.1
+    source: Z.ai, GLM-5.2 model card
+    as_of: '2026-06-16'
+    confidence: primary
+  - benchmark: swe_bench_verified
+    score: 78.7
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.2_max
+  - benchmark: terminal_bench_2_1
+    score: 81.0
+    harness: Terminus-2
+    source: Z.ai, GLM-5.2 model card
+    as_of: '2026-06-16'
+    confidence: primary
+  - benchmark: terminal_bench_2_1
+    score: 82.7
+    harness: best of those tried
+    source: Z.ai, GLM-5.2 model card
+    as_of: '2026-06-16'
+    confidence: primary
+    notes: Harness-shopped figure; the Terminus-2 number is the comparable one.
+  notes: '743-753B MoE, MIT licence, weights at zai-org/GLM-5.2. Its ARC-AGI-2 of 22.78 against GPT-5.6
+    Sol''s 92.5 is the widest gap in this file and makes ARC-AGI-2 the single best discriminator available:
+    seven items per arm suffice to separate them.'
+- id: glm-5.1
+  vendor: z-ai
+  family: openai_compat
+  display_name: GLM-5.1
+  aliases:
+  - z-ai/glm-5.1
+  - z-ai/glm-5.1-20260406
+  - zai-org/GLM-5.1
+  released: '2026-04-07'
+  reasoning: true
+  open_weights: true
+  context_window: 204800
+  max_output_tokens: 128000
+  modalities:
+  - text
+  pricing:
+    input_per_mtok: 0.966
+    output_per_mtok: 3.036
+    cache_read_per_mtok: 0.1794
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 29.9
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 55.8
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 40.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: critpt
+    score: 4.57
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.1
+  - benchmark: gpqa_diamond
+    score: 80.64
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.1
+  - benchmark: otis_mock_aime
+    score: 92.21
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.1
+  - benchmark: simpleqa_verified
+    score: 37.29
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.1
+  - benchmark: swe_bench_verified
+    score: 74.17
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version glm-5.1
+  notes: Epoch's rows carry no effort suffix, so effort is left null on all of them.
+- id: kimi-k3
+  vendor: moonshot
+  family: openai_compat
+  display_name: Kimi K3
+  aliases:
+  - moonshotai/kimi-k3
+  - moonshotai/kimi-k3-20260715
+  released: '2026-07-16'
+  reasoning: true
+  open_weights: true
+  default_effort: max
+  effort_ladder:
+  - max
+  - high
+  - low
+  context_window: 1048576
+  modalities:
+  - text
+  - image
+  pricing:
+    input_per_mtok: 3.0
+    output_per_mtok: 15.0
+    cache_read_per_mtok: 0.3
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 50.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 76.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 57.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: critpt
+    score: 23.4
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k3_max
+  - benchmark: frontiermath_t123
+    score: 72.18
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k3_max
+  - benchmark: frontiermath_t4
+    score: 39.02
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k3_max
+  - benchmark: gpqa_diamond
+    score: 90.82
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k3_max
+  - benchmark: otis_mock_aime
+    score: 97.22
+    effort: max
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k3_max
+  - benchmark: simpleqa_verified
+    score: 42.7
+    effort: max
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k3_max
+  notes: 2.8T MoE, 16 of 896 experts active. Moonshot's official K3 announcement contains no benchmark
+    numbers whatsoever; every figure circulating from launch charts is unverified and none is recorded
+    here. The Epoch runs below are the only trustworthy reference for this model.
+- id: kimi-k2.7-code
+  vendor: moonshot
+  family: openai_compat
+  display_name: Kimi K2.7 Code
+  aliases:
+  - moonshotai/kimi-k2.7-code
+  - moonshotai/kimi-k2.7-code-20260612
+  - moonshotai/Kimi-K2.7-Code
+  released: '2026-06-12'
+  reasoning: true
+  open_weights: true
+  context_window: 262144
+  max_output_tokens: 262144
+  modalities:
+  - text
+  - image
+  pricing:
+    input_per_mtok: 0.73
+    output_per_mtok: 3.5
+    cache_read_per_mtok: 0.15
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 29.6
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 60.8
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 41.9
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: critpt
+    score: 10.0
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k2.7-code
+  - benchmark: frontiermath_t123
+    score: 54.04
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k2.7-code
+  - benchmark: frontiermath_t4
+    score: 12.2
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k2.7-code
+  - benchmark: gpqa_diamond
+    score: 86.03
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k2.7-code
+  - benchmark: otis_mock_aime
+    score: 96.39
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k2.7-code
+  - benchmark: simpleqa_verified
+    score: 39.2
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version kimi-k2.7-code
+  notes: 1T total / 32B active MoE. Reasoning is mandatory; no effort ladder is advertised.
+- id: qwen3.7-max
+  vendor: alibaba
+  family: openai_compat
+  display_name: Qwen3.7-Max
+  aliases:
+  - qwen/qwen3.7-max
+  - qwen/qwen3.7-max-20260520
+  released: '2026-05-19'
+  reasoning: true
+  context_window: 1000000
+  max_output_tokens: 65536
+  modalities:
+  - text
+  pricing:
+    input_per_mtok: 1.475
+    output_per_mtok: 4.425
+    cache_read_per_mtok: 0.295
+    cache_write_per_mtok: 1.84375
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 30.6
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 66.0
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 46.0
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: critpt
+    score: 13.43
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version qwen3.7-max
+  - benchmark: frontiermath_t123
+    score: 64.56
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version qwen3.7-max
+  - benchmark: frontiermath_t4
+    score: 34.15
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version qwen3.7-max
+  - benchmark: gpqa_diamond
+    score: 88.8
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version qwen3.7-max
+  - benchmark: otis_mock_aime
+    score: 94.99
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version qwen3.7-max
+  - benchmark: simpleqa_verified
+    score: 58.52
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version qwen3.7-max
+  - benchmark: swe_bench_verified
+    score: 77.27
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version qwen3.7-max
+  notes: 'Closed weights, API only. Secondary sources circulate two conflicting sets of figures for
+    this model (MMLU-Pro 89.6 against 82, GPQA-D 92.4 against 90, HLE 41.4 against 38.2) with no conditions
+    attached to either. None is recorded: a benchmark probe fed the wrong one of a conflicting pair
+    produces exactly the false accusation this tool exists to avoid. Epoch''s standardised runs are
+    used instead.'
+- id: qwen3.7-plus
+  vendor: alibaba
+  family: openai_compat
+  display_name: Qwen3.7-Plus
+  aliases:
+  - qwen/qwen3.7-plus
+  - qwen/qwen3.7-plus-20260602
+  released: '2026-06-02'
+  reasoning: true
+  context_window: 1000000
+  max_output_tokens: 65536
+  modalities:
+  - text
+  - image
+  pricing:
+    input_per_mtok: 0.32
+    output_per_mtok: 1.28
+    cache_read_per_mtok: 0.064
+    cache_write_per_mtok: 0.4
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 20.8
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 55.9
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 39.0
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  notes: Closed weights, API only. No Epoch run and no lab figures with stated conditions.
+- id: Qwen3.6-35B-A3B
+  vendor: alibaba
+  family: openai_compat
+  display_name: Qwen3.6 35B-A3B
+  aliases:
+  - Qwen/Qwen3.6-35B-A3B
+  - qwen/qwen3.6-35b-a3b
+  - qwen/qwen3.6-35b-a3b-20260415
+  - qwen3.6-35b-a3b
+  released: '2026-04-14'
+  reasoning: true
+  open_weights: true
+  context_window: 262144
+  max_output_tokens: 262144
+  modalities:
+  - text
+  - image
+  - video
+  pricing:
+    input_per_mtok: 0.14
+    output_per_mtok: 1.0
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 21.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 41.9
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 31.6
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: critpt
+    score: 0.29
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version qwen3.6-35b-a3b
+  - benchmark: terminal_bench
+    score: 24.6
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version qwen3.6-35b-a3b; Epoch relays this figure from https://www.tbench.ai/leaderboard/terminal-bench/2.0
+  notes: Open weights, so this is one of the few ids where a provider's quantization choice can be
+    checked directly against the published checkpoint. Query OpenRouter's endpoints API for the self-reported
+    quantization of each host; those labels are never audited.
+- id: mistral-medium-3-5
+  vendor: mistral
+  family: openai_compat
+  display_name: Mistral Medium 3.5
+  aliases:
+  - mistralai/mistral-medium-3-5
+  - mistralai/mistral-medium-3.5-20260430
+  - mistral-medium-3.5
+  released: '2026-04-30'
+  reasoning: true
+  default_effort: high
+  effort_ladder:
+  - high
+  - none
+  context_window: 262144
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 1.5
+    output_per_mtok: 7.5
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 19.0
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 46.9
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 29.9
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: swe_bench_verified
+    score: 77.6
+    source: Mistral, Medium 3.5 announcement
+    as_of: '2026-04-30'
+    confidence: primary
+    notes: Reasoning effort not stated.
+  - benchmark: tau3_telecom
+    score: 91.4
+    source: Mistral, Medium 3.5 announcement
+    as_of: '2026-04-30'
+    confidence: primary
+    notes: Reasoning effort not stated.
+  notes: 128B dense, modified MIT licence. Epoch's 'Mistral Medium 3' rows are model_version mistral-medium-2505,
+    a different model, and are deliberately not attached here.
+- id: mistral-small-2603
+  vendor: mistral
+  family: openai_compat
+  display_name: Mistral Small 2603
+  aliases:
+  - mistralai/mistral-small-2603
+  - mistralai/Mistral-Small-4-119B-2603
+  reasoning: true
+  open_weights: true
+  default_effort: high
+  effort_ladder:
+  - high
+  - none
+  context_window: 262144
+  modalities:
+  - text
+  - image
+  pricing:
+    input_per_mtok: 0.15
+    output_per_mtok: 0.6
+    cache_read_per_mtok: 0.015
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 4.7
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 26.6
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 19.6
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  notes: The 2603 suffix is a release stamp, not a date the loader should strip, which is why normalisation
+    only removes full eight-digit or ISO stamps.
+- id: grok-4.5
+  vendor: xai
+  family: openai_compat
+  display_name: Grok 4.5
+  aliases:
+  - x-ai/grok-4.5
+  - x-ai/grok-4.5-20260708
+  released: '2026-07-08'
+  training_cutoff: '2026-02-01'
+  reasoning: true
+  default_effort: high
+  effort_ladder:
+  - high
+  - medium
+  - low
+  context_window: 500000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 2.0
+    output_per_mtok: 6.0
+    cache_read_per_mtok: 0.3
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 45.7
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 72.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 53.8
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: deepswe_1_0
+    score: 62.0
+    source: Third-party summaries of the Grok 4.5 launch
+    as_of: '2026-07-08'
+    confidence: secondary
+  - benchmark: frontiermath_t123
+    score: 57.19
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version grok-4.5_high
+  - benchmark: frontiermath_t4
+    score: 24.39
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version grok-4.5_high
+  - benchmark: gpqa_diamond
+    score: 91.25
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version grok-4.5_high
+  - benchmark: otis_mock_aime
+    score: 97.78
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version grok-4.5_high
+  - benchmark: simpleqa_verified
+    score: 53.5
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version grok-4.5_high
+  - benchmark: swe_bench_pro
+    score: 64.7
+    source: Third-party summaries of the Grok 4.5 launch
+    as_of: '2026-07-08'
+    confidence: secondary
+  - benchmark: terminal_bench_2_1
+    score: 83.3
+    source: Third-party summaries of the Grok 4.5 launch
+    as_of: '2026-07-08'
+    confidence: secondary
+  notes: 'xAI publishes no benchmark scores on its documentation site, so the three figures above
+    have no primary source and are marked secondary. Epoch''s independent runs are the load-bearing
+    reference for this model. Pricing is tiered by context length: 2/6 USD per MTok below 200k and
+    4/12 at or above it; the flat OpenRouter figures recorded here are the sub-200k tier.'
+- id: grok-4.3
+  vendor: xai
+  family: openai_compat
+  display_name: Grok 4.3
+  aliases:
+  - x-ai/grok-4.3
+  - x-ai/grok-4.3-20260430
+  - grok-4-3
+  released: '2026-04-17'
+  reasoning: true
+  default_effort: low
+  effort_ladder:
+  - high
+  - medium
+  - low
+  - none
+  context_window: 1000000
+  modalities:
+  - text
+  - image
+  - file
+  pricing:
+    input_per_mtok: 1.25
+    output_per_mtok: 2.5
+    cache_read_per_mtok: 0.2
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 24.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 42.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 37.6
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: critpt
+    score: 8.0
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version grok-4.3_high
+  - benchmark: frontiermath_t123
+    score: 42.81
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version grok-4.3_high
+  - benchmark: frontiermath_t4
+    score: 14.63
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version grok-4.3_high
+  - benchmark: gpqa_diamond
+    score: 85.1
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version grok-4.3_high
+  - benchmark: otis_mock_aime
+    score: 93.33
+    effort: high
+    optimized: true
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version grok-4.3_high
+  - benchmark: simpleqa_verified
+    score: 38.0
+    effort: high
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version grok-4.3_high
+  notes: Epoch files this under the display name 'Grok 4.3 Beta'. xAI publishes no scores of its own.
+- id: command-a-plus-05-2026
+  vendor: cohere
+  family: openai_compat
+  display_name: Command A+
+  aliases:
+  - cohere/command-a-plus-05-2026
+  context_window: 256000
+  reasoning: true
+  modalities:
+  - text
+  - image
+  scores:
+  - benchmark: aime_2025
+    score: 90.0
+    n_items: 300
+    source: Cohere, Command A+ announcement
+    as_of: '2026-07-26'
+    confidence: primary
+    notes: pass@1 over 30 questions x 10 attempts.
+  - benchmark: ifbench
+    score: 74.0
+    n_items: 1470
+    source: Cohere, Command A+ announcement
+    as_of: '2026-07-26'
+    confidence: primary
+    notes: Single-turn, loose scoring.
+  - benchmark: mathvista
+    score: 80.6
+    source: Cohere, Command A+ announcement
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: mmmu
+    score: 75.1
+    source: Cohere, Command A+ announcement
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: mmmu_pro
+    score: 63.0
+    source: Cohere, Command A+ announcement
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: scicode
+    score: 38.0
+    source: Cohere, Command A+ announcement
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: tau2_bench_telecom
+    score: 85.0
+    source: Cohere, Command A+ announcement
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: terminal_bench_hard
+    score: 25.0
+    harness: Terminus-2
+    source: Cohere, Command A+ announcement
+    as_of: '2026-07-26'
+    confidence: primary
+  notes: 218B MoE / 25B active. Absent from OpenRouter's catalogue, so context window comes from Cohere's
+    documentation and no pricing is recorded. Epoch has not run it.
+- id: amazon.nova-2-lite-v1
+  vendor: amazon
+  family: openai_compat
+  display_name: Amazon Nova 2 Lite
+  aliases:
+  - amazon/nova-2-lite-v1
+  - nova-2-lite-v1
+  - us.amazon.nova-2-lite-v1
+  - eu.amazon.nova-2-lite-v1
+  reasoning: true
+  context_window: 1000000
+  max_output_tokens: 65535
+  modalities:
+  - text
+  - image
+  - video
+  - file
+  pricing:
+    input_per_mtok: 0.3
+    output_per_mtok: 2.5
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 3.1
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 23.0
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 18.2
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aime_2025
+    score: 91.0
+    source: Amazon, Nova 2 technical report
+    as_of: '2026-07-26'
+    confidence: primary
+  - benchmark: gpqa_diamond
+    score: 79.6
+    source: Amazon, Nova 2 technical report
+    as_of: '2026-07-26'
+    confidence: primary
+    notes: Two-turn prompt template.
+  - benchmark: ifbench
+    score: 70.8
+    source: Amazon, Nova 2 technical report
+    as_of: '2026-07-26'
+    confidence: primary
+    notes: Prompt-level loose scoring.
+  - benchmark: livecodebench
+    score: 71.0
+    source: Amazon, Nova 2 technical report
+    as_of: '2026-07-26'
+    confidence: primary
+    notes: v5 release.
+  - benchmark: mmlu_pro
+    score: 80.9
+    shots: 0
+    source: Amazon, Nova 2 technical report
+    as_of: '2026-07-26'
+    confidence: primary
+    notes: 0-shot chain of thought.
+  - benchmark: tau2_bench_telecom
+    score: 76.0
+    source: Amazon, Nova 2 technical report
+    as_of: '2026-07-26'
+    confidence: primary
+    notes: Verified split, average of 3 runs.
+  - benchmark: terminal_bench_1_0
+    score: 32.5
+    source: Amazon, Nova 2 technical report
+    as_of: '2026-07-26'
+    confidence: primary
+  notes: Bedrock exposes this through us. and eu. inference-profile prefixes, aliased above. Amazon
+    reports SWE-bench Verified as 61.5 base against 70.0 with test-time scaling without saying which
+    Nova 2 variant either belongs to, so neither is recorded.
+- id: amazon.nova-premier-v1
+  vendor: amazon
+  family: openai_compat
+  display_name: Amazon Nova Premier
+  aliases:
+  - amazon/nova-premier-v1
+  - nova-premier-v1
+  - us.amazon.nova-premier-v1
+  - eu.amazon.nova-premier-v1
+  context_window: 1000000
+  max_output_tokens: 32000
+  modalities:
+  - text
+  - image
+  pricing:
+    input_per_mtok: 2.5
+    output_per_mtok: 12.5
+    cache_read_per_mtok: 0.625
+    source: https://openrouter.ai/api/v1/models
+  notes: This is the Nova Premier line, not Nova 2 Pro. Amazon's Nova 2 technical report figures belong
+    to Nova 2 Pro and Nova 2 Lite and are deliberately not attached here; no score is recorded for
+    Premier.
+- id: meta/muse-spark-1.1
+  vendor: meta
+  family: openai_compat
+  display_name: Muse Spark 1.1
+  aliases:
+  - meta/muse-spark-1.1-20260709
+  - muse-spark-1.1
+  released: '2026-07-09'
+  reasoning: true
+  default_effort: medium
+  effort_ladder:
+  - xhigh
+  - high
+  - medium
+  - low
+  - minimal
+  context_window: 1048576
+  modalities:
+  - text
+  - image
+  - audio
+  - video
+  - file
+  pricing:
+    input_per_mtok: 1.25
+    output_per_mtok: 4.25
+    cache_read_per_mtok: 0.15
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 37.5
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 71.3
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 50.6
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: hle
+    score: 52.2
+    tools: false
+    source: Third-party summaries of the Muse Spark 1.1 launch
+    as_of: '2026-07-26'
+    confidence: secondary
+  - benchmark: hle
+    score: 62.1
+    tools: true
+    source: Third-party summaries of the Muse Spark 1.1 launch
+    as_of: '2026-07-26'
+    confidence: secondary
+  - benchmark: mcp_atlas
+    score: 88.1
+    source: Third-party summaries of the Muse Spark 1.1 launch
+    as_of: '2026-07-26'
+    confidence: secondary
+  - benchmark: swe_bench_pro
+    score: 61.5
+    source: Third-party summaries of the Muse Spark 1.1 launch
+    as_of: '2026-07-26'
+    confidence: secondary
+  - benchmark: terminal_bench_2_1
+    score: 80.0
+    source: Third-party summaries of the Muse Spark 1.1 launch
+    as_of: '2026-07-26'
+    confidence: secondary
+  notes: Closed weights from Meta Superintelligence Labs; the Llama line is discontinued. Both primary
+    Newsroom posts contain zero quantitative data, so every figure here is secondary. Epoch carries
+    rows for an earlier 'Muse Spark' (model_version muse-spark, 2026-04-08); that is version 1.0 and
+    its scores are deliberately not attached to 1.1.
+- id: minimax-m3
+  vendor: minimax
+  family: openai_compat
+  display_name: MiniMax-M3
+  aliases:
+  - minimax/minimax-m3
+  - minimax/minimax-m3-20260531
+  - MiniMaxAI/Minimax-M3
+  released: '2026-06-01'
+  reasoning: true
+  open_weights: true
+  context_window: 1048576
+  max_output_tokens: 512000
+  modalities:
+  - text
+  - image
+  - video
+  pricing:
+    input_per_mtok: 0.3
+    output_per_mtok: 1.2
+    cache_read_per_mtok: 0.06
+    source: https://openrouter.ai/api/v1/models
+  scores:
+  - benchmark: aa_agentic_index
+    score: 35.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_coding_index
+    score: 58.6
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: aa_intelligence_index
+    score: 44.4
+    unit: score
+    source: Artificial Analysis, relayed by OpenRouter
+    source_url: https://openrouter.ai/api/v1/models
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Composite index, not a single benchmark; conditions unpublished.
+  - benchmark: critpt
+    score: 3.71
+    optimized: false
+    source: Epoch AI Capabilities Index
+    source_url: https://epoch.ai/data/eci_benchmarks.csv
+    as_of: '2026-07-26'
+    confidence: independent
+    notes: Epoch model_version MiniMax-M3
+  notes: Epoch has run only CritPt on this model. One benchmark is not an audit; treat a benchmark
+    verdict against this id as weak on its own.

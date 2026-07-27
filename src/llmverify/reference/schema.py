@@ -161,6 +161,33 @@ class ModelRecord(BaseModel):
         rank = {"primary": 0, "independent": 1, "secondary": 2, "unverified": 3}
         return sorted(candidates, key=lambda s: (rank[s.confidence], -s.as_of.toordinal()))[0]
 
+    def score_range_for(
+        self, benchmark: str, *, effort: str | None = None, tools: bool | None = None
+    ) -> tuple[float, float, int] | None:
+        """Lowest and highest published score under matching conditions, and the count.
+
+        Independent evaluators disagree about the same model at the same
+        settings. Claude Opus 5 on ARC-AGI-2 at max effort is 90.4 according to
+        ARC Prize and 88.3 according to Epoch AI -- both independent, both
+        current, 2.1 points apart.
+
+        Picking one and calling it *the* reference score decides, by accident of
+        sort order, whether an honest endpoint starts the comparison two points
+        in the hole. Callers running a hypothesis test should take the
+        conservative end of this range instead, so that disagreement between
+        sources widens the benefit of the doubt rather than silently becoming
+        the tool's own bias.
+        """
+        candidates = [s for s in self.scores if s.benchmark == benchmark]
+        if effort is not None:
+            candidates = [s for s in candidates if s.effort == effort] or candidates
+        if tools is not None:
+            candidates = [s for s in candidates if s.tools == tools] or candidates
+        if not candidates:
+            return None
+        values = [s.score for s in candidates]
+        return min(values), max(values), len(values)
+
     def matches(self, identifier: str) -> bool:
         ident = identifier.strip().lower()
         return ident == self.id.lower() or ident in {a.lower() for a in self.aliases}

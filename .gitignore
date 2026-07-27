@@ -1,13 +1,55 @@
+# Python
 __pycache__/
 *.py[cod]
-.pytest_cache/
-.ruff_cache/
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+.installed.cfg
+pip-wheel-metadata/
+
+# Environments
 .venv/
 venv/
-*.egg-info/
-dist/
-build/
+env/
+.env
+.env.*
+!.env.example
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.hypothesis/
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 .DS_Store
+Thumbs.db
+
+# Run artefacts. An HTML report or a result JSON is evidence about one endpoint
+# at one moment, often with that endpoint's error bodies quoted verbatim inside
+# it. It belongs in a ticket, not in the repository.
 *.html
 !docs/**/*.html
 llmverify-report*.json
+llmverify-report*.html
+report.html
+results/
+runs/
+
+# The dataset cache defaults to $XDG_CACHE_HOME/llmverify, outside the tree.
+# This catches the case where someone points --cache-dir at the checkout.
+.cache/
+llmverify-cache/

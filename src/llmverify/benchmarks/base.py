@@ -99,7 +99,9 @@ _LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 def normalise_text(text: str) -> str:
     """Casefold, strip punctuation and collapse whitespace, for exact matching."""
     text = text.strip().casefold()
-    text = re.sub(r"[‘’“”]", "'", text)
+    # The curly quotes here are deliberate: models emit them and published
+    # answer keys use straight ones, so folding them is part of fair grading.
+    text = re.sub(r"[‘’“”]", "'", text)  # noqa: RUF001 - matching these is the point
     text = re.sub(r"[^\w\s.\-/]", " ", text)
     return re.sub(r"\s+", " ", text).strip()
 
@@ -132,7 +134,9 @@ class Benchmark(abc.ABC):
     answer_instruction: ClassVar[str] = ""
 
     @abc.abstractmethod
-    async def load(self, loader: _datasets.DatasetLoader, *, limit: int | None = None) -> list[BenchmarkItem]:
+    async def load(
+        self, loader: _datasets.DatasetLoader, *, limit: int | None = None
+    ) -> list[BenchmarkItem]:
         """Fetch and parse items. Implementations must be deterministic."""
 
     # ------------------------------------------------------------------ render
@@ -231,6 +235,8 @@ def register_benchmark(cls: type[Benchmark]) -> type[Benchmark]:
 
 
 def all_benchmarks() -> dict[str, type[Benchmark]]:
+    from importlib.metadata import entry_points
+
     from . import (  # noqa: F401
         aime,
         gpqa,
@@ -239,8 +245,6 @@ def all_benchmarks() -> dict[str, type[Benchmark]]:
         simpleqa,
         synthetic,
     )
-
-    from importlib.metadata import entry_points
 
     try:
         eps = entry_points(group="llmverify.benchmarks")
