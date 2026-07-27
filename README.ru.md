@@ -63,14 +63,14 @@ $ llmverify models opus     # что справочный snapshot знает о
 строке — вы называете переменную окружения, в которой он лежит:
 
 ```console
-$ export ACME_API_KEY=...
-$ llmverify check \
-    --api openai \
-    --base-url https://api.acme-inference.example/v1 \
-    --model opus5-turbo \
-    --claimed-model claude-opus-5 \
-    --api-key-env ACME_API_KEY \
-    --layers 0,1
+$ $env:ACME_API_KEY = "sk-xxxxxxxxxxxxxxxxxxxxxxxx"
+$ llmverify check `
+  --api openai `
+  --base-url https://codexru.com/ai `
+  --model gpt-5.6-luna `
+  --claimed-model gpt-5.6-luna `
+  --api-key-env ACME_API_KEY `
+  --layers 0,1
 ```
 
 Слои 0 и 1 стоят доли цента и ловят большинство небрежных подмен. Чтобы запустить
