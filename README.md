@@ -61,14 +61,14 @@ Then point it at an endpoint. The key never appears on the command line — you
 name the environment variable that holds it:
 
 ```console
-$ export ACME_API_KEY=...
-$ llmverify check \
-    --api openai \
-    --base-url https://api.acme-inference.example/v1 \
-    --model opus5-turbo \
-    --claimed-model claude-opus-5 \
-    --api-key-env ACME_API_KEY \
-    --layers 0,1
+$ $env:ACME_API_KEY=...
+$ llmverify check `
+  --api openai `
+  --base-url https://codexru.com/ai `
+  --model gpt-5.6-luna `
+  --claimed-model gpt-5.6-luna `
+  --api-key-env ACME_API_KEY `
+  --layers 0,1
 ```
 
 Layers 0 and 1 cost fractions of a cent and catch most careless substitutions. To
