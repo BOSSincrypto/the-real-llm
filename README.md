@@ -61,7 +61,7 @@ Then point it at an endpoint. The key never appears on the command line — you
 name the environment variable that holds it:
 
 ```console
-$ $env:ACME_API_KEY=...
+$ $env:ACME_API_KEY = "sk-xxxxxxxxxxxxxxxxxxxxxxxx"
 $ llmverify check `
   --api openai `
   --base-url https://codexru.com/ai `
