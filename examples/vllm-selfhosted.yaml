@@ -1,0 +1,57 @@
+# A local vLLM server. Useful as a control: you know what you loaded.
+#
+#   vllm serve zai-org/GLM-5.2 --port 8000
+#   llmverify check examples/vllm-selfhosted.yaml --layers 0,1,2
+#
+# Running llmverify against weights you loaded yourself is the cheapest way to
+# see what an honest endpoint's evidence looks like -- and to see how much of a
+# verdict is about the serving stack rather than the weights. Serve the same
+# checkpoint at fp8 and at bf16 and diff the two runs.
+
+name: local-vllm
+
+# vLLM's OpenAI-compatible server, so the `openai` adapter.
+api: openai
+
+# vLLM's default port is 8000 and the OpenAI routes live under /v1.
+base_url: http://127.0.0.1:8000/v1
+
+# vLLM answers to whatever `--served-model-name` you gave it, defaulting to the
+# HuggingFace repo id you served.
+model: zai-org/GLM-5.2
+
+# The snapshot's canonical id for these weights. `zai-org/GLM-5.2` and
+# `z-ai/glm-5.2` both resolve to it too, but naming it exactly is clearer.
+claimed_model: glm-5.2
+
+# vLLM requires no key by default. `auth_scheme: none` stops the adapter looking
+# for one; set `api_key_env` instead if you started vLLM with --api-key.
+auth_scheme: none
+
+# It is on your own machine, so the concurrency limit can be higher and the
+# retry budget lower -- a local connection that fails is not a flake.
+max_concurrency: 8
+max_retries: 1
+
+# ---------------------------------------------------------------------------
+# What llmverify will notice about vLLM specifically
+# ---------------------------------------------------------------------------
+# * `prompt_logprobs` -- logprobs over the *input* tokens -- is a vLLM extension.
+#   SGLang spells its equivalent `return_logprob` / `top_logprobs_num` and has no
+#   `prompt_logprobs` at all, and no first-party API has it. The api-surface
+#   probe tests for it, so a positive result here says "vLLM" fairly loudly.
+# * `--max-logprobs` defaults to 20 and `-1` uncaps it. The logprobs probe asks
+#   for 5, so the default is ample.
+# * vLLM emits no `system_fingerprint`. The metadata probe records that and does
+#   not weigh it: the response envelope is produced by the serving software, not
+#   by the weights.
+# * Its catalogue entries carry `max_model_len`, which is one of the hints
+#   `detect_serving_stack` uses to label the stack.
+# * Bitwise determinism is opt-in (`VLLM_BATCH_INVARIANT=1`, NVIDIA SM8.0 or
+#   later, identical hardware and the same vLLM build) and costs throughput.
+#   Without it, drift at temperature 0 is expected and llmverify scores it at
+#   essentially zero.
+#
+# Pricing is omitted deliberately: there is none. Without it the cost estimate is
+# zero and only --max-samples and --max-wall bind, which is the right behaviour
+# for hardware you already own.

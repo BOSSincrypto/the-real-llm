@@ -1,0 +1,75 @@
+# OpenRouter, which is a router rather than a provider.
+#
+#   llmverify check examples/openrouter.yaml --verbose
+#
+# OpenRouter is worth a config of its own because one model id there is not one
+# endpoint. Behind `anthropic/claude-opus-5` sit several upstream providers with
+# different quantization, different context limits and different serving stacks,
+# and OpenRouter chooses between them per request. A verdict is only about the
+# route you actually got.
+
+name: openrouter
+api: openai
+base_url: https://openrouter.ai/api/v1
+
+# OpenRouter identifiers are `author/slug`, optionally with a routing tag.
+model: anthropic/claude-opus-5
+
+# The canonical id the snapshot knows. The reference lookup does strip an
+# `author/` prefix and a `:free`-style routing tag by itself, so this line is
+# belt and braces -- but it is also documentation of what you believe you are
+# buying, which is the point of the run.
+claimed_model: claude-opus-5
+
+api_key_env: OPENROUTER_API_KEY
+
+# OpenRouter reads these two headers for its public app rankings. They are
+# optional and carry no verification meaning; they are here because most
+# OpenRouter configs in the wild have them and their absence is not a signal.
+headers:
+  HTTP-Referer: https://example.org/llmverify
+  X-Title: llmverify
+
+reasoning_effort: high
+
+# OpenRouter's own advertised price for this route, per million tokens. Read it
+# from https://openrouter.ai/api/v1/models -- the `pricing` block is per-token
+# USD as strings, so multiply by 1,000,000.
+price_in_per_mtok: 5.0
+price_out_per_mtok: 25.0
+
+# ---------------------------------------------------------------------------
+# Reading the declared quantization
+# ---------------------------------------------------------------------------
+# When `base_url` is on openrouter.ai, the metadata probe (layer 0, free) calls
+#
+#   GET https://openrouter.ai/api/v1/models/{author}/{slug}/endpoints
+#
+# and reports what every upstream provider for this model declares for itself:
+# fp4, fp8, int4, int8, fp16, bf16, fp32 or `unknown`. Roughly a third of
+# OpenRouter endpoints declare `unknown`, no label is audited by OpenRouter, and
+# the labels are self-reported. So llmverify treats `unknown` as no evidence
+# either way and treats a low-precision declaration as a claim to check, not a
+# fact. The values land in the run's JSON under the metadata probe's
+# `declared_quantization` key.
+#
+# ---------------------------------------------------------------------------
+# Pinning a provider
+# ---------------------------------------------------------------------------
+# OpenRouter selects the upstream provider per request unless you constrain it,
+# which is why unpinned OpenRouter runs have invalidated published results: an
+# audit found 31 of 32 influential AI-safety codebases pinning nothing. llmverify
+# does not send OpenRouter's `provider` routing object -- the built-in probes
+# construct their own request bodies -- so pin it one of these ways instead:
+#
+#   * Point `base_url` at the upstream provider's own API and check that
+#     endpoint directly. This is the only option that removes the router from
+#     the measurement entirely, and it is the one to prefer.
+#   * Use an OpenRouter provider-specific slug where one exists, in `model`.
+#   * Run `llmverify compare` across several provider files, one per upstream,
+#     and read the spread. That is the measurement the gpt-oss-120b incident
+#     produced: identical weights, 93.3% at one provider and 36.7% at another.
+#
+# Either way, record which route you measured. A verdict against
+# `anthropic/claude-opus-5` on OpenRouter is a verdict about a routing decision
+# that may not repeat on your next request.

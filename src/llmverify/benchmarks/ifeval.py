@@ -136,7 +136,16 @@ _ABBREVIATIONS = (
     "approx",
     "e.g",
     "i.e",
+    "a.m",
+    "p.m",
+    "u.s",
 )
+# Whitespace after terminal punctuation, allowing one closing quote or bracket
+# between the two. Written as two fixed-width alternatives because Python's
+# lookbehind will not take a variable-width pattern, and as a lookbehind rather
+# than a consuming match so that splitting never eats a character.
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|(?<=[.!?][\"')\]])\s+")
+
 #: Stand-in for a full stop that does not end a sentence. A private-use
 #: character, so nothing in a real response can collide with it and be
 #: turned back into a stray dot by the restore.
@@ -163,9 +172,12 @@ def split_sentences(text: str) -> list[str]:
         return []
 
     for abbreviation in _ABBREVIATIONS:
+        # The replacement is computed from the match rather than from the list
+        # entry, so that a case-insensitive match does not rewrite "Dr." as
+        # "dr." in text the caller may go on to read.
         body = re.sub(
             rf"(?<![\w.]){re.escape(abbreviation)}\.",
-            abbreviation + _DOT,
+            lambda match: match.group(0)[:-1] + _DOT,
             body,
             flags=re.IGNORECASE,
         )
@@ -173,7 +185,7 @@ def split_sentences(text: str) -> list[str]:
     body = re.sub(r"(?<![\w.])([A-Za-z])\.(?=\s)", rf"\1{_DOT}", body)
     body = body.replace("...", _DOT * 3)
 
-    parts = re.split(r"(?<=[.!?])[\"')\]]*\s+", body)
+    parts = _SENTENCE_SPLIT_RE.split(body)
     return [part.replace(_DOT, ".").strip() for part in parts if part.strip()]
 
 

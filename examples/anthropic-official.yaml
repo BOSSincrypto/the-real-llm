@@ -1,0 +1,59 @@
+# Anthropic's own API, used as the A/B baseline for a run against a reseller.
+#
+#   llmverify check examples/openai-compatible.yaml \
+#       --baseline examples/anthropic-official.yaml
+#
+# A first-party endpoint is the strongest reference this tool can have. Published
+# benchmark numbers are effort-conditional, months old and measured on a harness
+# that is not this one; a live baseline is measured now, on the same items, with
+# the same grader. The logprobs probe only has a two-sample test to run when a
+# baseline exists, and the synthetic benchmark -- whose items are generated at
+# run time and therefore have no published score at all -- can only be used as a
+# paired A/B.
+#
+# This file is also useful on its own, as a control: run it against itself and
+# see what a clean verdict looks like before you read an adverse one.
+
+name: anthropic-first-party
+
+# The Anthropic adapter speaks /v1/messages, authenticates with x-api-key, and
+# reaches POST /v1/messages/count_tokens -- a free endpoint running the real
+# tokenizer, which is what makes the tokenizer and token-accounting probes exact
+# here rather than differenced.
+api: anthropic
+
+# Omit `base_url` to use https://api.anthropic.com/v1. Set it to a Bedrock or
+# Vertex gateway that speaks the same protocol if that is what you are auditing;
+# thinking-block signatures are documented as portable across those three.
+# base_url: https://api.anthropic.com/v1
+
+# From the 4.6 generation onward a dateless Anthropic id is a pinned snapshot,
+# not an evergreen alias. Pre-4.6 dateless names are aliases. Pin deliberately.
+model: claude-opus-5
+
+api_key_env: ANTHROPIC_API_KEY
+
+# Anthropic's effort ladder is max / xhigh / high / medium / low, and the API
+# default is high. Pin it: this is the setting the reference scores are compared
+# at, and an unpinned run is compared against a number measured somewhere else
+# on the ladder.
+reasoning_effort: high
+
+# First-party pricing for claude-opus-5, per million tokens, as published on
+# 2026-07-26. Used for the estimated-spend ceiling and for the performance
+# probe's price comparison. Re-check it against `llmverify models claude-opus-5`
+# before trusting a cost estimate.
+price_in_per_mtok: 5.0
+price_out_per_mtok: 25.0
+
+# What this baseline unlocks, and what it does not:
+#
+#   * A significant difference between candidate and baseline says the two are
+#     running different serving configurations. That may be different weights,
+#     different precision, or a different GPU generation on a Tuesday.
+#   * Anthropic states plainly that "the serving infrastructure around the model
+#     can change over time" and that infrastructure updates produce minor
+#     behavioural differences at fixed weights. Two runs against this very file,
+#     a month apart, can therefore disagree without anything being wrong.
+#   * A baseline roughly doubles the traffic a run generates, and you pay
+#     Anthropic for its half at the rates above.

@@ -207,16 +207,29 @@ def _substitution(rng: random.Random, difficulty: int) -> _Generated:
 
     for index in range(1, len(names)):
         name = names[index]
-        source = rng.choice(names[:index])
+        # Each step depends on the one before it, so the chain to the answer is
+        # genuinely ``hops`` deep. A step that picked any earlier variable would
+        # often produce a one-hop shortcut to the target and quietly make the
+        # item easier than the difficulty setting claims.
+        source = names[index - 1]
         operator = rng.choice(("+", "-", "*"))
-        operand = rng.randrange(2, 12)
-        if operator == "+":
-            values[name] = values[source] + operand
-        elif operator == "-":
-            values[name] = values[source] - operand
+        # Multiplication only by a literal: multiplying two chained values makes
+        # the numbers explode without making the bookkeeping harder.
+        if operator != "*" and difficulty >= 3 and index >= 2 and rng.random() < 0.5:
+            operand_name = rng.choice(names[: index - 1])
+            operand_value = values[operand_name]
+            operand_text = operand_name
         else:
-            values[name] = values[source] * operand
-        lines.append(f"Let {name} = {source} {operator} {operand}.")
+            operand_value = rng.randrange(2, 12)
+            operand_text = str(operand_value)
+
+        if operator == "+":
+            values[name] = values[source] + operand_value
+        elif operator == "-":
+            values[name] = values[source] - operand_value
+        else:
+            values[name] = values[source] * operand_value
+        lines.append(f"Let {name} = {source} {operator} {operand_text}.")
 
     target = names[-1]
     return _Generated(
@@ -226,36 +239,63 @@ def _substitution(rng: random.Random, difficulty: int) -> _Generated:
     )
 
 
-def _constraint(rng: random.Random, difficulty: int) -> _Generated:
-    """Find the one integer in a range satisfying two congruences.
+#: Pairwise-coprime moduli by difficulty. Coprimality is what makes the search
+#: range constructible: over a window as wide as the moduli's product, the
+#: remainder theorem guarantees exactly one solution.
+_MODULI: tuple[tuple[int, ...], ...] = (
+    (5, 7),
+    (7, 9, 11),
+    (9, 11, 13),
+    (11, 13, 17),
+    (13, 17, 19, 23),
+)
 
-    Uniqueness is verified by search before the item is emitted: a constraint
-    problem with two answers is ungradable, and one with none is unfair.
+
+def _constraint(rng: random.Random, difficulty: int) -> _Generated:
+    """Find the one integer in a range satisfying two or three congruences.
+
+    The range is built to be exactly as wide as the product of the moduli, so
+    the answer is unique by construction rather than by lucky draw. Uniqueness
+    is then confirmed by search anyway, because an item with two answers is
+    ungradable and an item with none is unfair, and neither should ever escape
+    into a run on the strength of an argument in a comment.
     """
-    upper = 200 + 200 * difficulty
-    for _ in range(64):
-        first, second = rng.sample((5, 7, 9, 11, 13, 17), 2)
-        remainder_a = rng.randrange(first)
-        remainder_b = rng.randrange(second)
-        floor = rng.randrange(10, upper // 2)
-        solutions = [
-            value
-            for value in range(floor, upper + 1)
-            if value % first == remainder_a and value % second == remainder_b
-        ]
-        if len(solutions) == 1:
-            return _Generated(
-                question=(
-                    f"Find the unique integer n with {floor} <= n <= {upper} such that "
-                    f"n leaves remainder {remainder_a} when divided by {first} and remainder "
-                    f"{remainder_b} when divided by {second}."
-                ),
-                answer=str(solutions[0]),
-                kind="constraint",
-            )
-    # Falling back keeps generation total: a run must never fail because a
-    # random draw was unlucky.
-    return _modular(rng, difficulty)
+    pool = _MODULI[min(len(_MODULI) - 1, difficulty - 1)]
+    count = 3 if difficulty >= 4 and len(pool) >= 3 else 2
+    moduli = rng.sample(pool, count)
+    remainders = [rng.randrange(modulus) for modulus in moduli]
+
+    product = 1
+    for modulus in moduli:
+        product *= modulus
+    floor = rng.randrange(10, 40 * difficulty + 30)
+    upper = floor + product - 1
+
+    solutions = [
+        value
+        for value in range(floor, upper + 1)
+        if all(
+            value % modulus == remainder
+            for modulus, remainder in zip(moduli, remainders, strict=True)
+        )
+    ]
+    if len(solutions) != 1:
+        # Unreachable while the pools stay pairwise coprime. Falling back rather
+        # than raising keeps generation total: a benchmark that cannot produce
+        # an item is worse than one that produces a different kind of item.
+        return _modular(rng, difficulty)
+
+    conditions = " and ".join(
+        f"n leaves remainder {remainder} when divided by {modulus}"
+        for modulus, remainder in zip(moduli, remainders, strict=True)
+    )
+    return _Generated(
+        question=(
+            f"Find the unique integer n with {floor} <= n <= {upper} such that {conditions}."
+        ),
+        answer=str(solutions[0]),
+        kind="constraint",
+    )
 
 
 def _string_task(rng: random.Random, difficulty: int) -> _Generated:

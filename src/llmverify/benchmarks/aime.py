@@ -66,7 +66,10 @@ _ANSWER_INSTRUCTION = (
     'exactly as "ANSWER: <integer>", with no commas, units, LaTeX or explanation on that line.'
 )
 
-_INTEGER_RE = re.compile(r"^[+-]?\d{1,6}$")
+# Wider than the 0-999 the contest allows, deliberately. An endpoint that
+# answers 1000000 has answered wrongly, not unintelligibly, and grading it as an
+# extraction failure would quietly drop it from the accuracy test instead.
+_INTEGER_RE = re.compile(r"^[+-]?\d{1,12}$")
 _BOXED_RE = re.compile(r"\\(?:boxed|fbox|framebox)\s*\{")
 _LATEX_NOISE_RE = re.compile(r"\\(?:text|mathrm|mbox|displaystyle|left|right|,|;|!|\s)")
 

@@ -1,0 +1,97 @@
+llmverify
+Copyright the llmverify contributors
+
+This product includes software developed by the llmverify contributors,
+licensed under the Apache License, Version 2.0. See LICENSE.
+
+--------------------------------------------------------------------------------
+Reference data redistributed inside this package
+--------------------------------------------------------------------------------
+
+Epoch AI -- AI Capabilities Index benchmark data
+    https://epoch.ai/data/eci_benchmarks.csv
+    Licence: Creative Commons Attribution (CC-BY)
+
+    Benchmark scores in src/llmverify/reference/data/reference.yaml whose
+    `source` field reads "Epoch AI Capabilities Index" are derived from this
+    dataset. They cover GPQA Diamond, ARC-AGI-1, ARC-AGI-2, SimpleQA Verified,
+    HLE, CritPt, FrontierMath, OTIS Mock AIME, SWE-Bench Verified, Terminal
+    Bench, Aider polyglot, MMLU, MATH level 5, BBH and GSM8K. The CC-BY licence
+    permits this redistribution; the credit it requires is this notice.
+    `llmverify refresh --source epoch` re-reads the same file.
+
+Artificial Analysis -- intelligence, coding and agentic index values
+    https://artificialanalysis.ai/
+    Terms: Artificial Analysis's own terms of use.
+
+    Scores in the snapshot under the benchmark keys `aa_intelligence_index`,
+    `aa_coding_index` and `aa_agentic_index` originate with Artificial Analysis
+    and reach this package through OpenRouter's public model API, which embeds
+    them. They are attributed to Artificial Analysis rather than to OpenRouter,
+    with the source field "Artificial Analysis, relayed by OpenRouter". The
+    Artificial Analysis API itself is not called; it requires a key.
+
+OpenRouter -- public model and endpoint API
+    https://openrouter.ai/api/v1/models
+    https://openrouter.ai/api/v1/models/{author}/{slug}/endpoints
+
+    Model identifiers, context lengths, per-token pricing and per-provider
+    self-declared quantization labels are read from OpenRouter's documented
+    public API, which requires no key. Only that API is used; the website is
+    not scraped. Requests are made at refresh cadence, one at a time.
+
+--------------------------------------------------------------------------------
+Evaluation datasets fetched at runtime
+--------------------------------------------------------------------------------
+
+None of these are redistributed in this repository. They are fetched on demand
+over the HuggingFace datasets-server REST API and cached under the user's cache
+directory. Each remains under its own licence, and using a benchmark through
+llmverify does not change the terms you accepted from its publisher.
+
+MIT
+    basicv8vc/SimpleQA           -- source of the items used by the
+                                    `simpleqa_verified` benchmark
+    TIGER-Lab/MMLU-Pro           -- source of the MMLU-Pro probe items
+
+unverified
+    HuggingFaceH4/aime_2024      -- source of the AIME 2024 probe items. The
+                                    dataset card carries no licence tag, so
+                                    llmverify reports the licence as
+                                    "unverified" rather than assuming one.
+
+cc-by-4.0
+    Idavidrein/gpqa              -- source of the GPQA Diamond probe items.
+                                    Gated: it requires an accepted licence and
+                                    an HF token, and its terms ask that items
+                                    not be republished in plaintext. llmverify
+                                    caches items locally and never emits them
+                                    into a report.
+
+cc-by-nc-sa-4.0
+    MathArena/aime_2026          -- source of the AIME 2026 probe items
+    MathArena/aime_2025          -- source of the AIME 2025 probe items
+                                    Non-commercial: check this against your own
+                                    use before running these two benchmarks in
+                                    a commercial audit.
+
+apache-2.0
+    google/IFEval                -- source of the IFEval probe items
+
+The `synthetic` benchmark is generated locally and carries no third-party
+licence.
+
+--------------------------------------------------------------------------------
+Prior art
+--------------------------------------------------------------------------------
+
+No code from these projects is included. They are named because the design
+follows their published results, and docs/limitations.md cites them in full.
+
+    Model Equality Testing: Which Model Is This API Serving?  arXiv:2410.20247
+    Are You Getting What You Pay For? Auditing Model Substitution in LLM APIs
+                                                              arXiv:2504.04715
+    A rank-based uniformity test for LLM API auditing         arXiv:2506.06975
+    The Silent Hyperparameter: backend choice in LLM evaluation
+                                                              arXiv:2605.19537
+    Defeating Nondeterminism in LLM Inference (Thinking Machines Lab, 2025)

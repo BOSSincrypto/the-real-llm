@@ -19,11 +19,12 @@ The comparison is still worth making -- the questions are drawn from the same
 pool and the score gap between models dwarfs the gap between subsets -- but it
 is approximate, and the probe's tolerance allowance is doing real work here.
 
-**This grader is stricter than the one the labs used.** OpenAI's harness grades
-SimpleQA with a model judge that accepts any semantically correct phrasing.
-Grading with a judge would put a second trusted model inside a tool whose entire
-job is to check whether a model can be trusted, so this implementation matches
-strings instead: normalisation, a small closed alias table, and a date parser.
+**This grader is stricter than the one the labs used.** The published SimpleQA
+figures come from judge-based grading, which accepts any semantically correct
+phrasing. Grading with a judge would put a second trusted model inside a tool
+whose entire job is to check whether a model can be trusted, so this
+implementation matches strings instead: normalisation, a small closed alias
+table, and a date parser.
 That systematically *under*-scores every endpoint, by an amount this package has
 not measured. Two consequences follow, and both belong in the report rather than
 in a footnote. Comparing this benchmark's absolute number against a lab's

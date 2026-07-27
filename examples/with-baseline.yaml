@@ -1,0 +1,103 @@
+# A provider file carrying a `run:` block: A/B mode plus a tightened budget.
+#
+# One file, two loaders. `llmverify.config.load_provider` reads everything except
+# `run:`, which it drops; `llmverify.config.load_run_config` reads the `run:`
+# block alone. That is how a single checked-in file can describe both halves of a
+# repeatable audit.
+#
+# From Python:
+#
+#     import asyncio
+#     from llmverify.config import load_provider, load_run_config
+#     from llmverify.runner import verify_provider
+#
+#     provider = load_provider("examples/with-baseline.yaml")
+#     run = load_run_config("examples/with-baseline.yaml")
+#     result = asyncio.run(verify_provider(provider, run))
+#
+# The CLI does NOT read the `run:` block -- it builds its run config from flags
+# only. The equivalent command line is spelled out at the bottom of this file.
+
+name: acme-reseller-ab
+api: openai
+base_url: https://api.acme-inference.example/v1
+model: opus5-turbo
+claimed_model: claude-opus-5
+api_key_env: ACME_API_KEY
+reasoning_effort: high
+price_in_per_mtok: 1.20
+price_out_per_mtok: 6.00
+
+run:
+  # Which layers to run. 0 is free metadata, 1 is cheap fingerprints, 2 is
+  # capability probes, 3 is the statistical layer that actually costs money.
+  layers: [0, 1, 2, 3]
+
+  # Restrict the run to named probes, or drop named ones. Both empty means
+  # "everything in the selected layers". Naming probes explicitly also disables
+  # the runner's early stop, because you asked for those probes specifically.
+  probes: []
+  exclude_probes: [long_context]
+
+  # Which benchmarks the layer-3 probes may use, cheapest-discriminating first.
+  # Empty means the runner chooses. `llmverify benchmarks` prints the spread of
+  # published scores for each, which is the column that decides whether a
+  # benchmark can separate two frontier models at all.
+  benchmarks: [simpleqa_verified]
+
+  # Seed for every randomised choice: item sampling, option shuffling,
+  # paraphrase selection. Fixing it is what makes a run reproducible.
+  seed: 20260726
+
+  # Send each benchmark item both verbatim and paraphrased, so the evasion probe
+  # can measure whether the endpoint behaves differently on recognisable inputs.
+  # Leave it on unless you are deliberately reproducing a published number.
+  anti_evasion: true
+
+  # Prior odds that the claim is true, before any evidence. 1.0 is 50/50 and is
+  # the honest default for a spot check. Lower it if you already have reason to
+  # distrust this endpoint -- and say so in the report if you do.
+  prior_odds: 1.0
+
+  budget:
+    # Tightened from the 0.50 / 600 / 900 defaults. The cost figure is estimated
+    # from the prices above, because providers do not report spend, so the
+    # runner errs on the side of stopping early.
+    max_cost_usd: 0.15
+    max_samples: 250
+    max_wall_s: 420.0
+
+    # Type I error: the probability of wrongly accusing a provider that is
+    # serving the real model. Kept tight on purpose -- a false accusation is the
+    # worst thing this tool can do.
+    alpha: 0.005
+    # Type II error: the probability of missing a genuine substitution.
+    beta: 0.05
+    # The accuracy shortfall, in percentage points, that counts as a degradation
+    # worth detecting. Smaller values need many more items.
+    min_effect_pp: 8.0
+
+  # The first-party endpoint to measure against, inline. Same fields as any
+  # provider file. With this set, the logprobs probe gains a two-sample test and
+  # the benchmark probes gain a measured reference instead of a published one.
+  baseline:
+    name: anthropic-first-party
+    api: anthropic
+    model: claude-opus-5
+    api_key_env: ANTHROPIC_API_KEY
+    reasoning_effort: high
+    price_in_per_mtok: 5.0
+    price_out_per_mtok: 25.0
+
+# The same run from the command line, since the CLI ignores `run:` above:
+#
+#   llmverify check examples/with-baseline.yaml \
+#       --baseline examples/anthropic-official.yaml \
+#       --layers 0,1,2,3 \
+#       --exclude-probe long_context \
+#       --benchmark simpleqa_verified \
+#       --seed 20260726 \
+#       --max-cost 0.15 --max-samples 250 --max-wall 420
+#
+# alpha, beta, min_effect_pp and prior_odds have no CLI flags. Reach them through
+# load_run_config, or through RunConfig directly.

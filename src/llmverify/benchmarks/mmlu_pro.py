@@ -1,11 +1,11 @@
 """MMLU-Pro: ten-option multiple choice across fourteen subject categories.
 
-**Ten options, not four.** MMLU-Pro replaced MMLU's four choices with up to ten
-(A-J) specifically to push random-guessing accuracy from 25% down to 10%, and
-that changes what a low score means: an endpoint scoring 30% here is far worse
-than an endpoint scoring 30% on a four-option benchmark. Option counts also vary
-per row -- most items have ten, but some have as few as three -- so nothing in
-this module assumes a fixed count.
+**Ten options, not four.** MMLU-Pro items carry up to ten choices (A-J) where
+MMLU carried four, which drops the random-guessing floor from 25% to 10% and
+changes what a low score means: an endpoint scoring 30% here is far worse than
+an endpoint scoring 30% on a four-option benchmark. Option counts also vary per
+row -- most items have ten, some have as few as three -- so nothing in this
+module assumes a fixed count.
 
 **The rows are blocked by subject, which makes naive sampling misleading.**
 Reading the first 600 rows of the split returns 600 business questions. That is
@@ -38,6 +38,7 @@ outright model swap.
 from __future__ import annotations
 
 import hashlib
+import logging
 import math
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -50,6 +51,8 @@ if TYPE_CHECKING:
     from .datasets import DatasetLoader
 
 __all__ = ["CATEGORIES", "MMLUPro"]
+
+_log = logging.getLogger(__name__)
 
 SPEC = DatasetSpec(
     dataset="TIGER-Lab/MMLU-Pro",
@@ -93,10 +96,21 @@ WINDOW_ROWS = 25
 #: category's block length.
 MIN_WINDOWS = 32
 
-#: Ceiling on windows, and so on requests. Reading the whole split would be 482
-#: requests; this caps a careless ``limit`` at 120 requests and 3,000 rows,
-#: which is far more than any run samples.
-MAX_WINDOWS = 120
+#: Ceiling on windows, and so on requests. Each window is one request to a
+#: shared public service that throttles anonymous callers, so this is a
+#: politeness limit as much as a performance one.
+MAX_WINDOWS = 64
+
+#: A category filter throws most of what it reads away, so it reads wide windows
+#: rather than more of them: 40 windows of 100 rows covers 4,000 rows in 40
+#: requests, and 12032/40 = 300 rows of spacing still lands inside every
+#: category's block.
+FILTERED_WINDOWS = 40
+FILTERED_WINDOW_ROWS = 100
+
+#: Rows below which a partially completed read is not worth grading. Above it, a
+#: read cut short by throttling is still a usable sample.
+MIN_PARTIAL_ROWS = 60
 
 
 @register_benchmark
@@ -149,21 +163,38 @@ class MMLUPro(Benchmark):
     ) -> list[BenchmarkItem]:
         """Read windows spread across the split and interleave them by category."""
         target = limit if limit is not None else SPLIT_ROWS
-        windows = max(MIN_WINDOWS, math.ceil(max(target, 1) / WINDOW_ROWS))
         if self.categories is not None:
-            # A filtered sample keeps only a fraction of what is read, so read
-            # as widely as the ceiling allows rather than as narrowly as the
-            # limit suggests.
-            windows = MAX_WINDOWS
-        windows = min(MAX_WINDOWS, windows)
+            windows, per_window = FILTERED_WINDOWS, FILTERED_WINDOW_ROWS
+        else:
+            windows = min(MAX_WINDOWS, max(MIN_WINDOWS, math.ceil(max(target, 1) / WINDOW_ROWS)))
+            per_window = WINDOW_ROWS
 
         rows: list[dict[str, Any]] = []
         seen_offsets: set[int] = set()
-        for offset in _offsets(windows):
+        for offset in _offsets(windows, per_window):
             if offset in seen_offsets:
                 continue
             seen_offsets.add(offset)
-            rows.extend(await loader.rows(SPEC, limit=WINDOW_ROWS, offset=offset))
+            try:
+                rows.extend(await loader.rows(SPEC, limit=per_window, offset=offset))
+            except DatasetError:
+                # A stratified read is many small requests against a shared
+                # public service, which throttles. Rows already fetched are a
+                # valid sample -- narrower than intended, and short of the
+                # last few categories -- so failing the entire benchmark over a
+                # late 429 would throw away good data. Too few rows to grade is
+                # a different matter and still raises.
+                if len(rows) < max(MIN_PARTIAL_ROWS, target // 2):
+                    raise
+                _log.warning(
+                    "%s: stopped after %d of %d windows (%d rows); the sample is narrower "
+                    "than planned and may under-represent late categories",
+                    SPEC,
+                    len(seen_offsets) - 1,
+                    windows,
+                    len(rows),
+                )
+                break
 
         items = [item for item in map(self._item, rows) if item is not None]
         deduplicated = list({item.id: item for item in items}.values())
@@ -222,11 +253,11 @@ class MMLUPro(Benchmark):
         )
 
 
-def _offsets(windows: int) -> list[int]:
+def _offsets(windows: int, per_window: int) -> list[int]:
     """Evenly spaced read offsets covering the split."""
     if windows <= 1:
         return [0]
-    span = max(0, SPLIT_ROWS - WINDOW_ROWS)
+    span = max(0, SPLIT_ROWS - per_window)
     return [round(step * span / (windows - 1)) for step in range(windows)]
 
 

@@ -139,6 +139,18 @@ def discriminative_power(
         raise ValueError("discriminative_power needs at least two scores")
     if any(not 0.0 <= v <= 100.0 for v in values):
         raise ValueError("scores must be percentages in [0, 100], not proportions")
+    # A range check alone does not catch the mistake it is meant to catch:
+    # proportions sit inside [0, 100] and sail through, then produce a sample
+    # size wrong by orders of magnitude. Passing 0.918 rather than 91.8 asks for
+    # 57 million items instead of 48 thousand, and nothing in the output looks
+    # obviously wrong. So reject a whole set that never exceeds 1.0, which no
+    # benchmark worth ranking ever does when expressed as a percentage.
+    if len(set(values)) >= 2 and max(values) <= 1.0:
+        raise ValueError(
+            "every score is <= 1.0, which looks like proportions rather than "
+            "percentages; multiply by 100 (a benchmark on which no model exceeds "
+            "1% cannot discriminate between them anyway)"
+        )
 
     ordered = sorted(values)
     gap, lower, upper = min(

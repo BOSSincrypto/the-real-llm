@@ -1,0 +1,86 @@
+# A generic reseller speaking the OpenAI Chat Completions protocol.
+#
+#   llmverify check examples/openai-compatible.yaml
+#
+# This is the shape most third-party endpoints take: an OpenAI-compatible route
+# in front of something you cannot see. Everything below is a field of
+# llmverify.config.ProviderConfig; unknown keys are rejected rather than ignored.
+
+# Label used in reports and in the `compare` table. Free text.
+name: acme-reseller
+
+# Adapter to speak. One of the registered adapter names -- `openai`,
+# `anthropic`, `gemini`, or one published by a plugin package. `openai` covers
+# vLLM, SGLang, LiteLLM, OpenRouter, Ollama, LM Studio and essentially every
+# reseller, because they all implement this protocol.
+api: openai
+
+# Endpoint root, without a trailing path. The adapter appends
+# `/chat/completions` and `/models` itself. Omit it to use the adapter's
+# first-party URL (https://api.openai.com/v1 for `openai`).
+base_url: https://api.acme-inference.example/v1
+
+# What to send in the `model` field of every request. This is the provider's
+# own naming, whatever that happens to be.
+model: opus5-turbo
+
+# The canonical model this endpoint claims to be serving. This is what the
+# reference snapshot is looked up by, and what the verdict is about. Set it
+# whenever `model` is not already a canonical id -- otherwise the run finds
+# nothing in the snapshot and half the probes have nothing to compare against.
+# Check the spelling with: llmverify models opus
+claimed_model: claude-opus-5
+
+# The *name* of an environment variable holding the API key. Never the key.
+# Nothing in this file is secret, so it is safe to commit; the key is resolved
+# at run time and scrubbed from every report, log line and HTML artefact.
+api_key_env: ACME_API_KEY
+
+# How the key is presented. Defaults to the adapter's norm -- `bearer` for
+# `openai`, `x-api-key` for `anthropic`, `query` for `gemini`. Override it for
+# an endpoint that deviates. One of: bearer, x-api-key, query, none.
+# auth_scheme: bearer
+
+# Extra request headers, merged into every call the adapter makes.
+# headers:
+#   x-acme-tenant: research
+
+# Extra query-string parameters on every call.
+# query_params:
+#   api-version: "2026-05-01"
+
+# Transport. The defaults are shown; raise `timeout_s` for an endpoint that
+# serves 1M-token prompts slowly, and lower `max_concurrency` for one that
+# rate-limits aggressively -- 429s otherwise read as capability failures.
+timeout_s: 180.0
+connect_timeout_s: 20.0
+max_concurrency: 4
+max_retries: 3
+
+# Only ever set `verify_tls: false` against something you control on a network
+# you control. A verifier that skips certificate checks can be
+# machine-in-the-middled by exactly the party it is auditing.
+verify_tls: true
+# proxy: http://127.0.0.1:8080
+
+# Pin reasoning effort. Published benchmark scores are effort-conditional --
+# DeepSeek reports V4-Pro at 90.1 on GPQA Diamond in Think-Max and 72.9 in
+# Non-Think -- so leaving this unset makes the benchmark comparison approximate
+# and the run says so. Set it to whatever effort the reference score you care
+# about was measured at.
+reasoning_effort: high
+
+# Thinking-token budget, for stacks that accept one.
+# thinking_budget: 4096
+
+# Prices this provider advertises, per million tokens. Used by the performance
+# probe to compare the advertised economics against the claimed model's
+# first-party pricing, and by the budget to convert token usage into an
+# estimated spend so that --max-cost means something.
+price_in_per_mtok: 1.20
+price_out_per_mtok: 6.00
+
+# Accepted by the schema and available to custom probes. The bundled probes
+# build their own request bodies and do not merge it, so it has no effect on a
+# default run.
+# extra_body: {}

@@ -92,11 +92,23 @@ class OpenAICompatAdapter(Adapter):
     )
 
     #: Which output-length field to emit: ``"both"``, ``"max_tokens"``,
-    #: ``"max_completion_tokens"`` or ``"none"``. Sending both by default is
-    #: the only choice that works everywhere -- newer OpenAI models reject
-    #: ``max_tokens`` outright, while much of the compatible ecosystem has
-    #: never implemented ``max_completion_tokens``.
+    #: ``"max_completion_tokens"`` or ``"none"``.
+    #:
+    #: No single spelling works everywhere. Much of the compatible ecosystem --
+    #: vLLM, SGLang, older proxies -- only ever implemented ``max_tokens``,
+    #: while first-party OpenAI rejects a request that so much as mentions it
+    #: on the current model generation, telling the caller to use
+    #: ``max_completion_tokens`` instead. Sending both therefore fails against
+    #: real OpenAI, and sending either alone fails against half the field.
+    #:
+    #: So the default is to send both and negotiate down once, on the endpoint's
+    #: own complaint. See :meth:`try_chat`.
     max_tokens_field: ClassVar[str] = "both"
+
+    #: Set on the instance once an endpoint has told us which spelling it wants,
+    #: so the negotiation costs one rejected request per run rather than one per
+    #: probe. ``None`` means the question has not come up yet.
+    _negotiated_length_field: str | None = None
 
     #: Key recognised in :attr:`~llmverify.types.ChatRequest.extra_body` to
     #: override :attr:`max_tokens_field` for one request. It is removed from the
@@ -126,7 +138,8 @@ class OpenAICompatAdapter(Adapter):
         complains.
         """
         extra = dict(request.extra_body)
-        length_field = str(extra.pop(self.MAX_TOKENS_DIRECTIVE, self.max_tokens_field)).lower()
+        default_field = self._negotiated_length_field or self.max_tokens_field
+        length_field = str(extra.pop(self.MAX_TOKENS_DIRECTIVE, default_field)).lower()
 
         payload: dict[str, Any] = {
             "model": self.config.model,
@@ -210,6 +223,36 @@ class OpenAICompatAdapter(Adapter):
 
         payload.update(extra)
         return payload
+
+    async def try_chat(
+        self, request: ChatRequest
+    ) -> tuple[ChatResponse | None, Exception | None]:
+        """Send the request, negotiating the output-length field if refused.
+
+        The two spellings of the token limit are mutually exclusive in
+        practice, and which one an endpoint wants is not discoverable without
+        asking. Rather than guess from the model name -- which a reseller
+        controls and can lie about -- this reads the endpoint's own rejection
+        and retries once with the spelling it asked for, remembering the answer
+        for the rest of the run.
+
+        The retry is deliberately narrow. It fires only on a 400 whose body
+        names one of the two fields, only when the caller has not pinned a
+        spelling itself, and only once: a probe that deliberately sends a
+        malformed request must still see its rejection, not a silent recovery.
+        """
+        response, error = await super().try_chat(request)
+        if error is None or self._negotiated_length_field is not None:
+            return response, error
+        if self.MAX_TOKENS_DIRECTIVE in request.extra_body:
+            return response, error
+
+        wanted = _length_field_from_error(error)
+        if wanted is None or wanted == self.max_tokens_field:
+            return response, error
+
+        self._negotiated_length_field = wanted
+        return await super().try_chat(request)
 
     def _message_payload(self, message: Message) -> dict[str, Any]:
         """Render one message, including tool results and replayed reasoning."""
@@ -909,3 +952,34 @@ def _token_label(text: str) -> str | None:
 
 def _is_local(host: str) -> bool:
     return host in _LOCAL_HOSTS or host.endswith(".local") or host.startswith("192.168.")
+
+
+def _length_field_from_error(error: Exception) -> str | None:
+    """Which output-length spelling an endpoint's 400 is asking for, if any.
+
+    Returns ``"max_completion_tokens"`` when the endpoint rejected
+    ``max_tokens``, ``"max_tokens"`` when it rejected the newer name, and
+    ``None`` when the failure was about something else entirely.
+    """
+    from ..errors import ProviderError
+
+    if not isinstance(error, ProviderError) or error.status != 400:
+        return None
+    body = (error.body or "").lower()
+    if "max_completion_tokens" not in body and "max_tokens" not in body:
+        return None
+
+    # OpenAI's wording on the current generation names the replacement it wants,
+    # so the presence of the newer field in a complaint about the older one is
+    # the signal, not the mere mention of either name.
+    complains_about_old = "max_tokens" in body and (
+        "not supported" in body or "unsupported" in body or "use 'max_completion_tokens'" in body
+    )
+    if complains_about_old and "max_completion_tokens" in body:
+        return "max_completion_tokens"
+    if "unrecognized" in body or "unknown" in body or "unexpected" in body:
+        if "max_completion_tokens" in body:
+            return "max_tokens"
+        if "max_tokens" in body:
+            return "max_completion_tokens"
+    return None
