@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import datetime as dt
 import random
+import socket
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any, ClassVar
@@ -48,6 +49,9 @@ from mockserver import MockConfig, MockProvider, Persona
 #: fails loudly instead of quietly comparing against real published numbers.
 CLAIMED_MODEL = "mock-model-1"
 OTHER_MODEL = "mock-other-2"
+#: A model whose first-party API is the Messages protocol, so that a claim to
+#: serve it over an OpenAI-compatible route is testable.
+ANTHROPIC_FAMILY_MODEL = "mock-messages-3"
 
 #: Token accounting for each. The two are far enough apart that the +/-2 token
 #: tolerance cannot confuse them, which is what makes "the overhead matches a
@@ -207,6 +211,15 @@ def build_snapshot() -> ReferenceSnapshot:
                 ),
                 scores=(_score(40.0),),
             ),
+            ModelRecord(
+                id=ANTHROPIC_FAMILY_MODEL,
+                vendor="mockvendor",
+                family="anthropic",
+                display_name="Mock Messages 3",
+                context_window=200_000,
+                reasoning=True,
+                pricing=Pricing(input_per_mtok=5.0, output_per_mtok=25.0, source="fixture"),
+            ),
         ),
     )
 
@@ -214,6 +227,39 @@ def build_snapshot() -> ReferenceSnapshot:
 # --------------------------------------------------------------------------- #
 # Fixtures
 # --------------------------------------------------------------------------- #
+
+
+_LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost", "0.0.0.0"})
+
+
+def _is_loopback(host: object) -> bool:
+    return isinstance(host, str) and (host in _LOOPBACK or host.startswith("127."))
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail any test that opens a socket to something other than loopback.
+
+    Enforced rather than promised. Several modules here reach the network in
+    normal use -- the dataset loader, the snapshot refresher, OpenRouter's
+    endpoint catalogue -- and a test that quietly starts doing so would be slow,
+    flaky, and dependent on someone else's uptime for its verdict.
+    """
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+
+    def guard(original: Any) -> Any:
+        def wrapper(self: socket.socket, address: Any, *args: Any, **kwargs: Any) -> Any:
+            if self.family in (socket.AF_INET, socket.AF_INET6):
+                host = address[0] if isinstance(address, tuple) else address
+                if not _is_loopback(host):
+                    raise AssertionError(f"a test tried to reach {host!r} over the network")
+            return original(self, address, *args, **kwargs)
+
+        return wrapper
+
+    monkeypatch.setattr(socket.socket, "connect", guard(real_connect))
+    monkeypatch.setattr(socket.socket, "connect_ex", guard(real_connect_ex))
 
 
 @pytest.fixture

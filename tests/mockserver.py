@@ -48,6 +48,7 @@ is one editor normalisation away from testing something other than it claims.
 from __future__ import annotations
 
 import base64
+import contextlib
 import enum
 import hashlib
 import hmac
@@ -149,6 +150,10 @@ class MockConfig:
     truncation_keeps: Literal["head", "tail"] = "head"
     advertised_context: int = 1_000_000
 
+    #: Whether the endpoint actually looks at inline images. A persona with this
+    #: off accepts image content and answers from the text alone, which is what a
+    #: text-only model wearing a multimodal name does.
+    answers_vision: bool = True
     corrupt_cjk: bool = False
     omit_usage: bool = False
     malformed_tool_arguments: bool = False
@@ -194,7 +199,9 @@ class MockConfig:
 # --------------------------------------------------------------------------- #
 
 _ECHO_MARKER = "Repeat the following text back exactly"
-_NEEDLE_QUESTION = re.compile(r"registry key for locker (\d+)")
+#: Only the question carries this phrasing; the planted line does not, so a
+#: prompt whose tail was clipped away leaves the endpoint with nothing to answer.
+_NEEDLE_QUESTION = re.compile(r"exactly one line recording the registry key for locker (\d+)")
 _NEEDLE_LINE = re.compile(r"MEMO the registry key for locker (\d+) is ([A-Z0-9]+)")
 #: Four digits or more, so the answer-format instruction cannot be mistaken for
 #: the arithmetic item itself.
@@ -302,8 +309,20 @@ class _Brain:
             accuracy = config.evasion_accuracy
         return _unit_interval(key) < accuracy
 
-    def reply(self, prompt: str, *, tools: list[dict[str, Any]], forced_tool: str | None) -> _Reply:
+    def reply(
+        self,
+        prompt: str,
+        *,
+        tools: list[dict[str, Any]],
+        forced_tool: str | None,
+        images: list[bytes] | None = None,
+    ) -> _Reply:
         thinking = "Considering the request." if self.config.emit_thinking else ""
+
+        if images and self.config.answers_vision:
+            seen = answer_vision(prompt, images)
+            if seen is not None:
+                return _Reply(text=f"ANSWER: {seen}", thinking=thinking)
 
         if tools and forced_tool is not None:
             return _Reply(
@@ -329,6 +348,7 @@ class _Brain:
             self._language,
             self._structural,
             self._identity,
+            self._prose,
         ):
             answer = handler(prompt)
             if answer is not None:
@@ -386,6 +406,22 @@ class _Brain:
             return f"I am {self.config.model_id or 'an assistant'}."
         return None
 
+    def _prose(self, prompt: str) -> str | None:
+        """Answer a request for prose with prose.
+
+        The determinism probe asks for two sentences and reads a short
+        byte-identical reply as a cache answering instead of a model. Returning
+        "ok" there would make every persona look like a lookup table, which is a
+        finding about this fixture rather than about the endpoint under test.
+        """
+        if "two sentences" not in prompt.lower():
+            return None
+        return (
+            "The lantern turns slowly above a grey sea and the fog thins as the light "
+            "reaches the water. Gulls settle on the gallery rail while the keeper writes "
+            "the hour in the log."
+        )
+
 
 def _tool_name(tool: dict[str, Any]) -> str:
     function = tool.get("function")
@@ -408,7 +444,11 @@ class MockProvider:
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
         self._server.daemon_threads = True
         self._server.provider = self  # type: ignore[attr-defined]
-        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        # A short poll interval so that shutting the server down is immediate.
+        # The default half-second would otherwise be paid once per test.
+        self._thread = threading.Thread(
+            target=self._server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True
+        )
         self._thread.start()
 
     # ------------------------------------------------------------------ address
@@ -569,6 +609,9 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path, _query, _body = self._read()
+        if self.config.fail_status is not None:
+            self._send(self.config.fail_status, None, raw=self.config.fail_body)
+            return
         if path.endswith("/models"):
             self._send(200, self._catalogue(path))
             return
@@ -668,12 +711,15 @@ class _Handler(BaseHTTPRequestHandler):
 
         messages = payload.get("messages") or []
         texts = [_openai_message_text(m) for m in messages if isinstance(m, dict)]
+        images = openai_images(messages)
         prompt = "\n".join(texts)
         prompt, reported_input = self._clip(prompt, texts)
 
         tools = [t for t in (payload.get("tools") or []) if isinstance(t, dict)]
         forced = _openai_forced_tool(payload.get("tool_choice"))
-        reply = self.provider.brain.reply(prompt, tools=tools, forced_tool=forced)
+        reply = self.provider.brain.reply(
+            prompt, tools=tools, forced_tool=forced, images=images
+        )
         text = self._shape_for_schema(payload, reply.text)
 
         message: dict[str, Any] = {"role": "assistant", "content": text}
@@ -794,11 +840,14 @@ class _Handler(BaseHTTPRequestHandler):
             return
 
         texts = _anthropic_texts(payload)
+        images = anthropic_images(payload)
         prompt = "\n".join(texts)
         prompt, reported_input = self._clip(prompt, texts)
         tools = [t for t in (payload.get("tools") or []) if isinstance(t, dict)]
         forced = _anthropic_forced_tool(payload.get("tool_choice"))
-        reply = self.provider.brain.reply(prompt, tools=tools, forced_tool=forced)
+        reply = self.provider.brain.reply(
+            prompt, tools=tools, forced_tool=forced, images=images
+        )
 
         content: list[dict[str, Any]] = []
         if reply.thinking:
@@ -896,11 +945,14 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(self.config.fail_status, None, raw=self.config.fail_body)
             return
         texts = _gemini_texts(payload)
+        images = gemini_images(payload)
         prompt = "\n".join(texts)
         prompt, reported_input = self._clip(prompt, texts)
         tools = _gemini_tools(payload)
         forced = _gemini_forced_tool(payload)
-        reply = self.provider.brain.reply(prompt, tools=tools, forced_tool=forced)
+        reply = self.provider.brain.reply(
+            prompt, tools=tools, forced_tool=forced, images=images
+        )
 
         parts: list[dict[str, Any]] = []
         if reply.thinking:
@@ -1191,3 +1243,181 @@ def _anthropic_stream_frames(body: dict[str, Any], text: str) -> list[str]:
     frames.append(json.dumps(delta))
     frames.append(json.dumps({"type": "message_stop"}))
     return frames
+
+
+# --------------------------------------------------------------------------- #
+# Vision
+# --------------------------------------------------------------------------- #
+#
+# The vision probe distinguishes an endpoint that rejects images from one that
+# accepts them and cannot see, so a mock that merely accepts them is
+# indistinguishable from a text-only model wearing a multimodal name -- exactly
+# the substitution the probe exists to catch. To test the probe rather than
+# tautologically confirm it, the honest persona has to actually look.
+#
+# The images are decoded and measured, never guessed at from the prompt. The
+# probe writes 8-bit truecolour PNGs with filter type 0 on every scanline, so
+# decoding is a zlib inflate and a stride calculation.
+
+_PALETTE_RGB: tuple[tuple[str, tuple[int, int, int]], ...] = (
+    ("red", (215, 35, 35)),
+    ("green", (30, 155, 60)),
+    ("blue", (35, 70, 200)),
+    ("yellow", (240, 210, 45)),
+    ("purple", (130, 50, 175)),
+    ("orange", (240, 135, 30)),
+)
+
+
+class _Image:
+    """A decoded 8-bit truecolour PNG."""
+
+    __slots__ = ("_raw", "_stride", "height", "width")
+
+    def __init__(self, width: int, height: int, raw: bytes) -> None:
+        self.width = width
+        self.height = height
+        self._raw = raw
+        self._stride = 1 + width * 3
+
+    def pixel(self, x: int, y: int) -> tuple[int, int, int]:
+        base = y * self._stride + 1 + x * 3
+        return self._raw[base], self._raw[base + 1], self._raw[base + 2]
+
+
+def decode_png(data: bytes) -> _Image | None:
+    """Decode the narrow PNG dialect the vision probe emits, or None."""
+    import zlib
+
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return None
+    offset = 8
+    width = height = 0
+    idat = bytearray()
+    while offset + 8 <= len(data):
+        length = int.from_bytes(data[offset : offset + 4], "big")
+        kind = data[offset + 4 : offset + 8]
+        body = data[offset + 8 : offset + 8 + length]
+        if kind == b"IHDR":
+            width = int.from_bytes(body[0:4], "big")
+            height = int.from_bytes(body[4:8], "big")
+            depth, colour_type, _, _, interlace = body[8:13]
+            if (depth, colour_type, interlace) != (8, 2, 0):
+                return None
+        elif kind == b"IDAT":
+            idat += body
+        elif kind == b"IEND":
+            break
+        offset += 12 + length
+    if not width or not height:
+        return None
+    try:
+        raw = zlib.decompress(bytes(idat))
+    except zlib.error:
+        return None
+    if len(raw) < height * (1 + width * 3) or any(
+        raw[y * (1 + width * 3)] != 0 for y in range(height)
+    ):
+        return None  # a filter other than None, which this decoder does not do
+    return _Image(width, height, raw)
+
+
+def _nearest_colour(rgb: tuple[int, int, int]) -> str:
+    return min(
+        _PALETTE_RGB,
+        key=lambda entry: sum((a - b) ** 2 for a, b in zip(entry[1], rgb, strict=True)),
+    )[0]
+
+
+def answer_vision(prompt: str, images: list[bytes]) -> str | None:
+    """Answer one of the probe's three questions by measuring the image.
+
+    Returns ``None`` when the prompt is not a vision task or the image cannot be
+    decoded, so the caller falls through to its ordinary text behaviour.
+    """
+    image = next((img for img in (decode_png(b) for b in images) if img is not None), None)
+    if image is None:
+        return None
+    lowered = prompt.lower()
+
+    if "one solid colour" in lowered:
+        return _nearest_colour(image.pixel(image.width // 2, image.height // 2))
+
+    if "count the filled squares" in lowered:
+        # Four-by-four layout; a cell counts as filled when its centre is inked.
+        cell = image.width // 4
+        background = image.pixel(1, 1)
+        filled = sum(
+            image.pixel(column * cell + cell // 2, row * cell + cell // 2) != background
+            for row in range(4)
+            for column in range(4)
+        )
+        return str(filled)
+
+    if "3 by 3 grid" in lowered:
+        cell = image.width // 3
+        centres = [
+            (row, column, image.pixel(column * cell + cell // 2, row * cell + cell // 2))
+            for row in range(3)
+            for column in range(3)
+        ]
+        counts: dict[tuple[int, int, int], int] = {}
+        for _, _, rgb in centres:
+            counts[rgb] = counts.get(rgb, 0) + 1
+        odd = min(centres, key=lambda entry: counts[entry[2]])
+        return f"{odd[0] + 1},{odd[1] + 1}"
+
+    return None
+
+
+def openai_images(messages: list[Any]) -> list[bytes]:
+    """Inline image bytes from an OpenAI-shaped message list."""
+    out: list[bytes] = []
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        content = message.get("content")
+        if not isinstance(content, list):
+            continue
+        for part in content:
+            if not isinstance(part, dict) or part.get("type") != "image_url":
+                continue
+            url = (part.get("image_url") or {}).get("url", "")
+            _, _, payload = url.partition("base64,")
+            if payload:
+                with contextlib.suppress(ValueError, TypeError):
+                    out.append(base64.b64decode(payload))
+    return out
+
+
+def anthropic_images(payload: dict[str, Any]) -> list[bytes]:
+    """Inline image bytes from an Anthropic-shaped request body."""
+    out: list[bytes] = []
+    for message in payload.get("messages") or []:
+        if not isinstance(message, dict):
+            continue
+        content = message.get("content")
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if not isinstance(block, dict) or block.get("type") != "image":
+                continue
+            source = block.get("source") or {}
+            if source.get("type") == "base64" and source.get("data"):
+                with contextlib.suppress(ValueError, TypeError):
+                    out.append(base64.b64decode(source["data"]))
+    return out
+
+
+def gemini_images(payload: dict[str, Any]) -> list[bytes]:
+    """Inline image bytes from a Gemini-shaped request body."""
+    out: list[bytes] = []
+    for content in payload.get("contents") or []:
+        if not isinstance(content, dict):
+            continue
+        for part in content.get("parts") or []:
+            inline = part.get("inlineData") if isinstance(part, dict) else None
+            if isinstance(inline, dict) and inline.get("data"):
+                with contextlib.suppress(ValueError, TypeError):
+                    out.append(base64.b64decode(inline["data"]))
+    return out

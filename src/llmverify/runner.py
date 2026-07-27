@@ -18,13 +18,21 @@ the benchmark probe hands per-item results to the evasion probe; none of that is
 synchronised, and interleaving two probes that touch it would trade a correct
 verdict for a few seconds.
 
-**Short-circuiting.** After each layer the evidence so far is aggregated. If it
-has already crossed the MATCH or MISMATCH threshold on at least
-:data:`SHORT_CIRCUIT_FAMILIES` independent evidence families, the run stops. This
-is what makes a blatant fake cost cents instead of dollars. It is also a partial
-audit, so every probe that never ran is recorded as skipped with the reason, and
-the verdict carries a note -- an early stop must never read like a clean bill of
-health.
+**Short-circuiting, in one direction only.** After each layer the evidence so
+far is aggregated. If it has already refuted the claim on at least
+:data:`SHORT_CIRCUIT_FAMILIES` independent evidence families, the run stops --
+that is what makes a blatant fake cost cents instead of dollars.
+
+Accumulated *positive* evidence never stops a run, because the layers do not all
+answer the same question. Layers 0 and 1 establish identity; layer 2 measures
+whether that identity is being served intact. A quantized deployment of the
+genuine model passes every identity check honestly and still fails the quality
+ones, so stopping on "it really is Opus 5" would skip the probes that notice its
+CJK output is corrupted and its million-token window is a fiction.
+
+An early stop is a partial audit either way, so every probe that never ran is
+recorded as skipped with the reason and the verdict carries a note. It must
+never read like a clean bill of health.
 
 **Containment.** Every probe is wrapped: a budget ceiling truncates the run
 cleanly, an unsupported capability becomes ``UNSUPPORTED`` evidence, and anything
@@ -609,29 +617,43 @@ def _short_circuit_reason(
 ) -> str:
     """Why the run may stop after this layer, or an empty string to continue.
 
-    Two guards beyond the posterior itself. The verdict must be one of the outer
-    bands, not merely leaning; and at least :data:`SHORT_CIRCUIT_FAMILIES`
-    families must have contributed, so that a run cannot be settled by several
-    probes all measuring the same property. An explicit ``--probe`` selection
-    disables stopping entirely: a user who named the experiments wants them run.
+    **Only an adverse verdict may stop a run.** Once substitution is
+    established, further probes buy nothing: the answer will not change and the
+    remaining budget would be spent confirming it. The reverse is not
+    symmetrical, and treating it as though it were is the mistake this function
+    exists to avoid.
+
+    Layers 0 and 1 establish *identity* -- what model this is. Layer 2 measures
+    *quality* -- whether that model is being served intact. Those are different
+    questions, and a quantized deployment of the genuine model answers the first
+    one truthfully: same tokenizer, same token accounting, valid thinking-block
+    signatures, correct model id. Stopping there on accumulated positive
+    evidence would skip precisely the probes that detect a degraded serving
+    configuration, and report MATCH for an endpoint whose CJK output is
+    corrupted and whose advertised context window is a fiction. A user who asked
+    for layer 2 asked that question and must get an answer to it.
+
+    Two further guards apply to the adverse case. The verdict must be one of the
+    outer bands, not merely leaning; and at least :data:`SHORT_CIRCUIT_FAMILIES`
+    families must have contributed, so that an accusation is never settled by
+    several probes all measuring the same property. An explicit ``--probe``
+    selection disables stopping entirely: a user who named the experiments wants
+    them run.
     """
     if not remaining or run.probes:
         return ""
 
     report = aggregate(collector.evidence, prior_odds=run.prior_odds)
-    if report.verdict not in (Verdict.MATCH, Verdict.MISMATCH):
+    if report.verdict not in (Verdict.MISMATCH, Verdict.EVASION):
         return ""
 
     families = sorted(f for f, total in report.family_totals.items() if abs(total) > 1e-9)
     if len(families) < SHORT_CIRCUIT_FAMILIES:
         return ""
 
-    direction = (
-        "supports the claim" if report.verdict is Verdict.MATCH else "refutes the claim"
-    )
     return (
         f"stopped after layer {layer}: the evidence from {len(families)} families "
-        f"({', '.join(families)}) already {direction} at "
+        f"({', '.join(families)}) already refutes the claim at "
         f"p={report.probability:.4f}, past the {report.verdict.value} threshold. "
         f"{remaining} further probe(s) were not run, so this is an early exit rather "
         "than a full audit."

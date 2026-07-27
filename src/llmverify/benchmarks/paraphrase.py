@@ -458,23 +458,25 @@ def paraphrase(text: str, *, rng: random.Random, safe_mode: bool | None = None) 
         if selected and (transform_is_safe or not safe):
             body = transform(body, rng)
 
-    body = _frame(body, rng, force=body == original)
-    result = masker.restore(body)
+    rewritten = body != original
 
     # Guarantee the property the caller actually needs. The lexical transforms
     # only fire when the input happens to contain a substitutable phrase, which
     # for a corpus of terse benchmark questions is most of the time not the
     # case, so without this the original survives verbatim inside the payload
     # and the whole verbatim-versus-paraphrased comparison measures nothing.
+    #
+    # This runs before framing rather than after, because a break placed inside
+    # a framing sentence leaves the question itself intact and defeats nothing.
     for _ in range(4):
-        if defeats_substring_match(text, result):
+        if defeats_substring_match(text, masker.restore(body)):
             break
         reflowed = _reflow(body, rng)
         if reflowed == body:
             break
         body = reflowed
-        result = masker.restore(body)
-    return result
+
+    return masker.restore(_frame(body, rng, force=not rewritten))
 
 
 def paraphrase_variants(

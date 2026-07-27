@@ -46,6 +46,7 @@ _VERDICT_TOKEN: dict[Verdict, str] = {
     Verdict.INCONCLUSIVE: "warn",
     Verdict.LIKELY_MISMATCH: "serious",
     Verdict.MISMATCH: "critical",
+    Verdict.DEGRADED: "serious",
     Verdict.EVASION: "evasion",
 }
 
@@ -63,6 +64,13 @@ _VERDICT_GLOSS: dict[Verdict, str] = {
         "strongest band."
     ),
     Verdict.MISMATCH: "The endpoint behaves unlike the claimed model.",
+    Verdict.DEGRADED: (
+        "This is the claimed model, but the deployment is not delivering it: a "
+        "capability it should have measurably is not there. Identity is not in "
+        "question here, so this sits off the match/mismatch axis -- the answer to "
+        "\"are they serving what I paid for\" is no, for a different reason than "
+        "substitution."
+    ),
     Verdict.EVASION: (
         "The endpoint's behaviour depends on whether an input is recognisable as a "
         "benchmark item. Every other measurement in this run was therefore taken under "

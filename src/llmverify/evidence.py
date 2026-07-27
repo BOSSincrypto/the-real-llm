@@ -71,6 +71,13 @@ class Verdict(str, enum.Enum):
     INCONCLUSIVE = "INCONCLUSIVE"
     LIKELY_MISMATCH = "LIKELY_MISMATCH"
     MISMATCH = "MISMATCH"
+    #: The endpoint is the claimed model, but is not serving it intact: the
+    #: context window is a fraction of what is advertised, non-Latin output is
+    #: corrupted, images are accepted but not seen. Reported separately because
+    #: it answers a different question from the match/mismatch axis, and because
+    #: identity evidence would otherwise drown it -- a quantized deployment of
+    #: the genuine model passes every identity check honestly.
+    DEGRADED = "DEGRADED"
     #: The provider behaves differently on recognisable benchmark inputs than on
     #: semantically equivalent paraphrases. This is reported separately because
     #: it is not a point on the match/mismatch axis -- it means the measurement
@@ -79,7 +86,12 @@ class Verdict(str, enum.Enum):
 
     @property
     def is_adverse(self) -> bool:
-        return self in (Verdict.LIKELY_MISMATCH, Verdict.MISMATCH, Verdict.EVASION)
+        return self in (
+            Verdict.LIKELY_MISMATCH,
+            Verdict.MISMATCH,
+            Verdict.DEGRADED,
+            Verdict.EVASION,
+        )
 
 
 @dataclass(slots=True)
@@ -203,6 +215,21 @@ FAMILY_CAPS: dict[str, float] = {
     "misc": MODERATE,
 }
 
+#: Families that measure whether the model is being served intact, as opposed
+#: to which model it is. Strong adverse evidence from any of these decides the
+#: verdict on its own, because identity evidence cannot answer the question they
+#: ask and would otherwise outvote them.
+#:
+#: Membership is narrow on purpose. Each of these fails only when the deployment
+#: is demonstrably not delivering the model: an advertised context window that
+#: is a fiction, output corrupted on non-Latin scripts, images accepted but
+#: unseen. ``capability`` is deliberately excluded -- an endpoint that treats a
+#: JSON schema as a suggestion rather than a constraint differs in what it
+#: implements, not in what it is serving, and plenty of honest deployments are
+#: best-effort there. Promoting that to a verdict of its own would flag most of
+#: the field.
+INTEGRITY_FAMILIES: frozenset[str] = frozenset({"long_context", "multilingual", "vision"})
+
 #: Posterior-probability boundaries for each verdict band.
 THRESHOLDS: tuple[tuple[float, Verdict], ...] = (
     (0.99, Verdict.MATCH),
@@ -277,6 +304,37 @@ def aggregate(
             f"(minimum {min_effective_probes}); verdict forced to INCONCLUSIVE."
         )
         verdict = Verdict.INCONCLUSIVE
+
+    # Serving integrity is a separate question from identity, and collapsing the
+    # two lets the wrong one win. A model quantized to four bits, or served
+    # behind a window a fraction of the advertised size, still has the genuine
+    # model's tokenizer, token accounting and signatures, so identity evidence
+    # accumulates strongly in its favour and swamps the capability shortfall.
+    # The posterior then reads LIKELY_MATCH for an endpoint whose million-token
+    # context is really four thousand -- true as far as it goes, and useless.
+    # So a confirmed integrity failure takes the verdict outright, exactly as
+    # evasion does, and says which capability failed.
+    if verdict in (Verdict.MATCH, Verdict.LIKELY_MATCH, Verdict.INCONCLUSIVE):
+        degraded = [
+            e
+            for e in evidence
+            if e.family in INTEGRITY_FAMILIES
+            and e.status is EvidenceStatus.OK
+            # At or beyond, not past: a probe's evidence is clamped to its
+            # family cap, and several integrity families cap at exactly
+            # MODERATE. A strict comparison would put the threshold just
+            # outside the strongest value those probes can ever emit, so the
+            # branch could never fire for the failures it was written for.
+            and e.llr <= -MODERATE + 1e-9
+        ]
+        if degraded:
+            worst = ", ".join(sorted({e.family for e in degraded}))
+            notes.append(
+                "Serving integrity failed while identity checks passed: this appears to "
+                f"be the claimed model, served degraded ({worst}). Identity evidence is "
+                "not in question and is reported separately below."
+            )
+            verdict = Verdict.DEGRADED
 
     # Evasion is not a point on the match axis. If the provider treats
     # recognisable benchmark inputs differently from paraphrases, every other

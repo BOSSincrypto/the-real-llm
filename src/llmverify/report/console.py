@@ -48,6 +48,7 @@ _VERDICT_STYLE: dict[Verdict, str] = {
     Verdict.INCONCLUSIVE: "yellow",
     Verdict.LIKELY_MISMATCH: "dark_orange",
     Verdict.MISMATCH: "bold red",
+    Verdict.DEGRADED: "bold yellow",
     Verdict.EVASION: "bold magenta",
 }
 
@@ -65,6 +66,13 @@ _VERDICT_GLOSS: dict[Verdict, str] = {
         "strongest band."
     ),
     Verdict.MISMATCH: "The endpoint behaves unlike the claimed model.",
+    Verdict.DEGRADED: (
+        "This is the claimed model, but the deployment is not delivering it: a "
+        "capability it should have measurably is not there. Identity is not in "
+        "question here, so this sits off the match/mismatch axis -- the answer to "
+        "\"are they serving what I paid for\" is no, for a different reason than "
+        "substitution."
+    ),
     Verdict.EVASION: (
         "The endpoint's behaviour depends on whether an input is recognisable as a "
         "benchmark item, so every other measurement here was taken under conditions the "
@@ -210,7 +218,7 @@ class ConsoleReporter:
         line.append(f"{outcome:<11}", style=_OUTCOME_STYLE.get(outcome, ""))
         line.append(f"L{event.layer} ", style="dim")
         line.append(event.probe)
-        line.append(f"  {event.elapsed:.1f}s", style="dim")
+        line.append(f"  {event.elapsed_s:.1f}s", style="dim")
         if message:
             line.append(f"  {message}", style="dim")
         self._print(line)
@@ -405,7 +413,7 @@ class ConsoleReporter:
             border_style=style,
             # A different frame, not only a different colour: the distinction
             # between EVASION and MISMATCH has to survive a monochrome terminal.
-            box=box.DOUBLE if verdict is Verdict.EVASION else box.HEAVY,
+            box=box.DOUBLE if verdict in (Verdict.EVASION, Verdict.DEGRADED) else box.HEAVY,
         )
 
     def _evidence_tables(self, result: RunResult) -> list[RenderableType]:
